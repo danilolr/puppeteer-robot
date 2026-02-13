@@ -1,0 +1,1 @@
+docker run -it -p 3000:3000 --name puppeter-robot-api danilolr/puppeter-robot-api-amd:0.0.6

@@ -1,0 +1,16 @@
+.openapi-generator-ignore
+apis/IaApi.ts
+apis/PuppeteerRobotApi.ts
+apis/index.ts
+index.ts
+models/IaModelsResp.ts
+models/IaReq.ts
+models/IaResp.ts
+models/RobotCommandReq.ts
+models/RobotCommandResp.ts
+models/RobotCreateResp.ts
+models/RobotErrorReq.ts
+models/RobotInfo.ts
+models/UploadResult.ts
+models/index.ts
+runtime.ts

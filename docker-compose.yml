@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  puppeter-api:
+    build:
+      context: ./puppeter-robot-api
+      dockerfile: docker/Dockerfile.amd64
+    container_name: puppeter-api
+    ports:
+      - "3000:3000"
+    environment:
+      - TEMP_FILE_PATH=/opt/putteter-api
+      # - GROQ_API_KEY=
+      # - GEMINI_API_KEY=
+      # - OLLAMA_API_URL=
+      - API_TOKEN=123456
+    restart: always
+
+  puppeter-ng:
+    build:
+      context: ./puppeter-robot-ng
+      dockerfile: docker/Dockerfile
+    container_name: puppeter-ng
+    ports:
+      - "8080:80"
+    volumes:
+      - ./puppeter-robot-ng/docker/config.json:/usr/share/nginx/html/assets/config.json
+    depends_on:
+      - puppeter-api
+    restart: always

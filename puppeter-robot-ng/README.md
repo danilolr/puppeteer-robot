@@ -1,0 +1,2 @@
+Esta pagina contem um campo "E-mail" e um campo  "Senha" alem de um botao para efetuar o login. 
+crie uma funcao javascript para ser executada no contexto da pagina que recebe email e senha como parametros. a funcao deve preencher os campos correspondentes e clicar no botao de login.

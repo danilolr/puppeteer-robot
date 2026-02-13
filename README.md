@@ -15,7 +15,7 @@ This monorepo contains two projects:
 
 - Browser automation via Puppeteer (headless Chromium)
 - Real-time communication through WebSockets
-- AI integration with Groq and Gemini APIs
+- AI integration with Groq, Ollama and Gemini APIs
 - Swagger API documentation
 
 ---
@@ -38,17 +38,17 @@ This monorepo contains two projects:
 2. **Start both services** with Docker Compose:
 
    ```bash
-   docker-compose up --build
+   docker compose up --build
    ```
 
    This will build and start:
-   - **API** at [http://localhost:3000](http://localhost:3000)
+   - **API** at [http://localhost:3000](http://localhost:3000/puppeteer-robot/api/v1/swagger)
    - **Frontend** at [http://localhost:8080](http://localhost:8080)
 
 3. **Stop the services:**
 
    ```bash
-   docker-compose down
+   docker compose down
    ```
 
 ### Exposed Ports
@@ -67,7 +67,9 @@ The following environment variables are configured in `docker-compose.yml`:
 | `TEMP_FILE_PATH` | Temporary file storage path inside the container |
 | `GROQ_API_KEY` | API key for Groq AI integration |
 | `GEMINI_API_KEY` | API key for Google Gemini AI integration |
+| `OLLAMA_API_URL` | Ollama URL for Ollama integration |
 | `API_TOKEN` | Authentication token for the API |
+
 
 ### Angular Configuration
 

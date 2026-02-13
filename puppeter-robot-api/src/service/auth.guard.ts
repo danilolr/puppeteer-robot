@@ -17,7 +17,6 @@ export class AuthGuard implements CanActivate {
         console.log("AuthGuard: Unauthorized request. Provided token: " + token)
         return false
     }
-    console.log("TOKEN", token)
 
     return true
   }

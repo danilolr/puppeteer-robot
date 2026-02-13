@@ -123,4 +123,4 @@ puppeter-robot/
 
 ## License
 
-This project is private and unlicensed.
+[MIT](LICENSE)

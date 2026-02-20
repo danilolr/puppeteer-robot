@@ -1,0 +1,1 @@
+docker run -it -p 3000:3000 --name puppeteer-robot-api danilolr/danilolr/puppeteer-robot-api:latest

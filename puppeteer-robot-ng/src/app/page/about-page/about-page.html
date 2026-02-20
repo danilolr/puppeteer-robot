@@ -1,0 +1,132 @@
+<div class="container mx-auto px-4 py-8">
+  <!-- Page Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">About</h1>
+  </div>
+
+  <!-- Version Information -->
+  <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-800">Version Information</h2>
+    </div>
+    
+    <div class="p-6 space-y-6">
+      <!-- Web App Version -->
+      <div class="flex items-center justify-between py-4 border-b border-gray-100">
+        <div class="flex items-center space-x-3">
+          <div class="flex-shrink-0">
+            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <span class="text-blue-600 text-lg">🖥️</span>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-sm font-medium text-gray-900">Web Application</h3>
+            <p class="text-sm text-gray-500">Frontend dashboard version</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            v{{ webAppVersion() }}
+          </span>
+        </div>
+      </div>
+
+      <!-- API Version -->
+      <div class="flex items-center justify-between py-4">
+        <div class="flex items-center space-x-3">
+          <div class="flex-shrink-0">
+            <div class="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+              <span class="text-green-600 text-lg">🔗</span>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-sm font-medium text-gray-900">API Backend</h3>
+            <p class="text-sm text-gray-500">Puppeteer Robot API version</p>
+          </div>
+        </div>
+        <div class="text-right">
+          @if (apiVersion()) {
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              v{{ apiVersion() }}
+            </span>
+          } @else {
+            <div class="flex items-center space-x-2">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+              <span class="text-sm text-gray-500">Loading...</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Environment -->
+  <div class="mt-8 bg-white shadow-lg rounded-lg overflow-hidden">
+    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-800">Environment</h2>
+    </div>
+    
+    <div class="p-6 space-y-6">
+      <!-- Environment Name -->
+      <div class="flex items-center justify-between py-4 border-b border-gray-100">
+        <div class="flex items-center space-x-3">
+          <div class="flex-shrink-0">
+            <div class="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+              <span class="text-purple-600 text-lg">🌍</span>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-sm font-medium text-gray-900">Environment</h3>
+            <p class="text-sm text-gray-500">Current environment name</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+            {{ envName() }}
+          </span>
+        </div>
+      </div>
+
+      <!-- API URL -->
+      <div class="flex items-center justify-between py-4 border-b border-gray-100">
+        <div class="flex items-center space-x-3">
+          <div class="flex-shrink-0">
+            <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+              <span class="text-indigo-600 text-lg">🔗</span>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-sm font-medium text-gray-900">API URL</h3>
+            <p class="text-sm text-gray-500">Backend API endpoint</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="text-sm font-mono text-gray-700 break-all">
+            {{ apiUrl() }}
+          </span>
+        </div>
+      </div>
+
+      <!-- WebSocket URL -->
+      <div class="flex items-center justify-between py-4">
+        <div class="flex items-center space-x-3">
+          <div class="flex-shrink-0">
+            <div class="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+              <span class="text-orange-600 text-lg">⚡</span>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-sm font-medium text-gray-900">WebSocket URL</h3>
+            <p class="text-sm text-gray-500">Real-time connection endpoint</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="text-sm font-mono text-gray-700 break-all">
+            {{ wsPath() }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

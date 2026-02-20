@@ -1,0 +1,62 @@
+/* Custom scrollbar for main content */
+main::-webkit-scrollbar {
+  width: 8px;
+}
+
+main::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+main::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+main::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Smooth transitions for all interactive elements */
+a, button {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Active route styling enhancement */
+a[routerLinkActive] {
+  position: relative;
+}
+
+a[routerLinkActive]::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 20px;
+  background-color: #3b82f6;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+a.bg-blue-600::before {
+  opacity: 1;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  aside {
+    position: fixed;
+    z-index: 50;
+    height: 100vh;
+  }
+  
+  aside.w-16 {
+    transform: translateX(-100%);
+  }
+  
+  main {
+    margin-left: 0;
+  }
+}

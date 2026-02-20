@@ -1,0 +1,8 @@
+{
+    "production": true,
+    "envName": "docker",
+    "apiUrl": "http://localhost:3000",
+    "wsPath": "http://localhost:3000",
+    "version": "1.5.5",
+    "apiToken": "123456"
+}

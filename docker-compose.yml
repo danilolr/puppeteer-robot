@@ -4,7 +4,7 @@ services:
   puppeteer-api:
     build:
       context: ./puppeteer-robot-api
-      dockerfile: docker/Dockerfile.amd64
+      dockerfile: docker/Dockerfile
     container_name: puppeteer-api
     ports:
       - "3000:3000"

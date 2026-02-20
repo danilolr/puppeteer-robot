@@ -42,8 +42,8 @@ This monorepo contains two projects:
    ```
 
    This will build and start:
-   - **API** at [http://localhost:3000](http://localhost:3000/puppeteer-robot/api/v1/swagger)
-   - **Frontend** at [http://localhost:8080](http://localhost:8080)
+   - **APIx** at <a href="http://localhost:3000/puppeteer-robot/api/v1/swagger" target="_blank">http://localhost:3000/puppeteer-robot/api/v1/swagger</a>
+   - **Frontend** at <a href="http://localhost:8080" target="_blank">http://localhost:8080</a>
 
 3. **Stop the services:**
 
@@ -109,8 +109,7 @@ puppeteer-robot/
 ├── README.md
 ├── puppeteer-robot-api/             # NestJS backend
 │   ├── docker/
-│   │   ├── Dockerfile.amd64
-│   │   └── Dockerfile.arm64
+│   │   └── Dockerfile
 │   ├── src/
 │   └── package.json
 └── puppeteer-robot-ng/              # Angular frontend

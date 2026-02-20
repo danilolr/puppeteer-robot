@@ -42,8 +42,8 @@ This monorepo contains two projects:
    ```
 
    This will build and start:
-   - **APIx** at <a href="http://localhost:3000/puppeteer-robot/api/v1/swagger" target="_blank">http://localhost:3000/puppeteer-robot/api/v1/swagger</a>
-   - **Frontend** at <a href="http://localhost:8080" target="_blank">http://localhost:8080</a>
+   - **API** at [http://localhost:3000/puppeteer-robot/api/v1/swagger](http://localhost:3000/puppeteer-robot/api/v1/swagger)
+   - **Frontend** at [http://localhost:8080](http://localhost:8080)
 
 3. **Stop the services:**
 

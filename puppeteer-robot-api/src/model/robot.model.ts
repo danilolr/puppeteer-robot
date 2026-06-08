@@ -14,6 +14,9 @@ export class RobotCommandReq {
 export class RobotErrorPayloadReq {
 
     @ApiProperty()
+    errorCode: string
+
+    @ApiProperty()
     message: string
 
     @ApiProperty()

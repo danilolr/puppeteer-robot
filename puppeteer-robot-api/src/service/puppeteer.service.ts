@@ -165,7 +165,7 @@ export class PuppeteerService {
             return {
                 status: RunStatusEnum.INTERNAL_ERROR,
                 data: result.data,
-                message: result.data.message
+                message: result.message
             }
         }
         return result

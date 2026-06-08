@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core"
 
-import { Configuration, IaApi, PuppeteerRobotApi } from "../api/puppeteer-robot-api"
+import { Configuration, IaApi, PuppeteerRobotApi, RobotCommandResp } from "../api/puppeteer-robot-api"
 import { ConfigService } from "./config.service"
 
 @Injectable({
@@ -22,6 +22,25 @@ export class ApisService {
   getIaApi(): IaApi {
     const api = new IaApi(this.getConfig())
     return api
+  }
+
+  async reportRobotError(robotId: string, errorCode: string, message: string, details: string): Promise<RobotCommandResp> {
+    return await this.getPuppeteerRobotApi().robotControllerError({
+      robotErrorReq: {
+        robotId,
+        payload: {
+          errorCode,
+          message,
+          description: JSON.stringify({
+            robotId,
+            errorCode,
+            message,
+            details,
+            reportedAt: new Date().toISOString(),
+          }),
+        },
+      },
+    })
   }
 
 }

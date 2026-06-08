@@ -17,7 +17,6 @@ export class MainTemplate {
   // Navigation menu items using signal
   menuItems = signal([
     { label: 'Robots', path: '', icon: '🤖' },
-    { label: 'Command', path: 'command', icon: '⚙️' },
     { label: 'About', path: 'about', icon: 'ℹ️' }
   ])
 

@@ -140,6 +140,20 @@
                         🤖 Query AI
                       </button>
                     }
+                    <button
+                      (click)="openReportErrorModal(rec)"
+                      [disabled]="processingReportError() === rec.robotId"
+                      class="text-orange-600 hover:text-orange-900 font-medium hover:underline transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
+                      title="Report error for robot">
+                      @if (processingReportError() === rec.robotId) {
+                        <span class="inline-flex items-center">
+                          <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-orange-600 mr-1"></div>
+                          Reporting...
+                        </span>
+                      } @else {
+                        ⚠️ Report Error
+                      }
+                    </button>
                     <button 
                       (click)="deleteRobot(rec)"
                       class="text-red-600 hover:text-red-900 font-medium hover:underline transition-colors"
@@ -387,6 +401,97 @@
   }
 </div>
 
+<!-- Report Error Modal -->
+@if (showReportErrorModal()) {
+  <div class="fixed inset-0 backdrop-blur-md overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-900">Report Robot Error</h3>
+        <button 
+          (click)="closeReportErrorModal()"
+          class="text-gray-400 hover:text-gray-600 transition-colors">
+          <span class="sr-only">Close</span>
+          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Robot ID: <span class="font-semibold text-blue-600">{{ selectedRobotId() }}</span>
+          </label>
+        </div>
+
+        <div class="mb-4">
+          <label for="report-error-code" class="block text-sm font-medium text-gray-700 mb-2">
+            Error Code
+          </label>
+          <input
+            id="report-error-code"
+            type="text"
+            [(ngModel)]="reportErrorCode"
+            placeholder="AUTOMATION_FAILED"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+          />
+        </div>
+
+        <div class="mb-4">
+          <label for="report-error-message" class="block text-sm font-medium text-gray-700 mb-2">
+            Message
+          </label>
+          <input
+            id="report-error-message"
+            type="text"
+            [(ngModel)]="reportErrorMessage"
+            placeholder="Automation failed"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+          />
+        </div>
+
+        <div>
+          <label for="report-error-details" class="block text-sm font-medium text-gray-700 mb-2">
+            Details
+          </label>
+          <textarea
+            id="report-error-details"
+            [(ngModel)]="reportErrorDetails"
+            rows="6"
+            placeholder="Describe what happened..."
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+        <button 
+          (click)="closeReportErrorModal()"
+          [disabled]="processingReportError() === selectedRobotId()"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
+          Cancel
+        </button>
+        <button 
+          (click)="reportRobotError()"
+          [disabled]="!reportErrorCode().trim() || !reportErrorMessage().trim() || processingReportError() === selectedRobotId()"
+          class="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
+          @if (processingReportError() === selectedRobotId()) {
+            <span class="inline-flex items-center">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Reporting...
+            </span>
+          } @else {
+            Report Error
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
 <!-- Query IA Response Modal -->
 @if (showQueryIaResponseModal()) {
   <div class="fixed inset-0 backdrop-blur-md overflow-y-auto h-full w-full z-50 flex items-center justify-center">
@@ -585,8 +690,27 @@
 
         <!-- Modal Body -->
         <div class="p-6">
-          <div class="bg-gray-50 rounded-lg p-4 font-mono text-sm overflow-auto max-h-[60vh]">
-            <pre class="whitespace-pre-wrap">{{ selectedErrorInfo() | json }}</pre>
+          <div class="space-y-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-500 mb-2">Error Code</label>
+              <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 whitespace-pre-wrap">
+                {{ getSelectedErrorCode() }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-500 mb-2">Message</label>
+              <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 whitespace-pre-wrap">
+                {{ getSelectedErrorMessage() }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-500 mb-2">Details</label>
+              <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 whitespace-pre-wrap max-h-[45vh] overflow-auto">
+                {{ getSelectedErrorDetails() }}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -601,4 +725,3 @@
       </div>
     </div>
   }
-

@@ -9,6 +9,7 @@ models/IaResp.ts
 models/RobotCommandReq.ts
 models/RobotCommandResp.ts
 models/RobotCreateResp.ts
+models/RobotErrorPayloadReq.ts
 models/RobotErrorReq.ts
 models/RobotInfo.ts
 models/UploadResult.ts

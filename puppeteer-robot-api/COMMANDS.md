@@ -1,0 +1,347 @@
+# Puppeteer Robot Commands
+
+This document describes command examples that can be sent to a robot through:
+
+- REST: `PUT /puppeteer-robot/run`
+- MCP: `puppeteer_robot_run_command`
+- Angular UI: `Send Command to Robot`
+
+The examples below come from the Angular modal `Send Command to Robot`.
+
+## Execution Context
+
+Commands are executed inside an async function created by the API. The command has access to:
+
+- `browser`: the active Puppeteer `Browser`.
+- `page`: the latest opened Puppeteer `Page`.
+- `filePath(hash)`: helper that resolves an uploaded file path from its upload hash.
+
+Because the command body is already inside an async function, you can use `await` directly.
+
+Example request:
+
+```json
+{
+  "robotId": "robot-id",
+  "command": "await page.goto('https://google.com')"
+}
+```
+
+If the command returns a value, it is returned in the API response `data` field.
+
+```json
+{
+  "status": "OK",
+  "data": "returned value"
+}
+```
+
+If the command throws a JavaScript exception, the API returns:
+
+```json
+{
+  "status": "JAVASCRIPT_EXCEPTION_ERROR",
+  "message": "error message",
+  "data": null
+}
+```
+
+If the command returns an object with `ok: false`, the API returns `FUNCTION_RETURN_ERROR`.
+
+The enum value in the API is named `FUNCTION_RETURN_ERROR`. If you see references to `FUNCTION_RESULT_ERROR`, they are referring to this same controlled-result error behavior, but the implemented status name is `FUNCTION_RETURN_ERROR`.
+
+### Controlled Function Error
+
+Use a controlled function error when the JavaScript command executes successfully, but the automation logic wants to report a failed result.
+
+Example command:
+
+```js
+return await page.evaluate(() => {
+  return {ok: false, message: "My Error Message"};
+})
+```
+
+This command does not throw a JavaScript exception. `page.evaluate` runs successfully and returns an object. However, because the returned object has `ok: false`, the API maps the result to `FUNCTION_RETURN_ERROR`.
+
+API response:
+
+```json
+{
+  "status": "FUNCTION_RETURN_ERROR",
+  "message": "My Error Message",
+  "data": {
+    "ok": false,
+    "message": "My Error Message"
+  }
+}
+```
+
+Use this pattern when the command itself can validate the page state and return a structured failure.
+
+For comparison, this command throws an exception:
+
+```js
+throw new Error("My Error Message")
+```
+
+That returns:
+
+```json
+{
+  "status": "JAVASCRIPT_EXCEPTION_ERROR",
+  "message": "My Error Message",
+  "data": null
+}
+```
+
+In short:
+
+- `FUNCTION_RETURN_ERROR`: the command returned `{ ok: false, message: "..." }`.
+- `JAVASCRIPT_EXCEPTION_ERROR`: the command threw an exception.
+
+## Command Examples
+
+### Navigate to a Website
+
+Opens a URL in the robot browser page.
+
+```js
+await page.goto('https://google.com')
+```
+
+Use this as the first command after creating a robot when the current page is still blank.
+
+Example with returned title:
+
+```js
+await page.goto('https://google.com')
+return await page.title()
+```
+
+---
+
+### Set Field Value
+
+Types text into an input element selected by CSS selector.
+
+```js
+await page.type('input[name="password"]', '123456')
+```
+
+This uses Puppeteer's `page.type`, which sends keyboard events. The element must exist and be editable.
+
+Common variations:
+
+```js
+await page.type('input[name="email"]', 'user@example.com')
+```
+
+```js
+await page.type('#password', '123456')
+```
+
+If the element may take time to appear, wait for it first:
+
+```js
+await page.waitForSelector('input[name="password"]')
+await page.type('input[name="senha"]', '123456')
+```
+
+---
+
+### Button Click
+
+Clicks a button selected by CSS selector.
+
+```js
+await page.click('button[type="submit"]')
+```
+
+Use this for submitting forms or activating page controls.
+
+If the click triggers navigation, combine it with `page.waitForNavigation`:
+
+```js
+await Promise.all([
+  page.waitForNavigation(),
+  page.click('button[type="submit"]')
+])
+```
+
+---
+
+### Wait for Navigation
+
+Waits until the current page finishes a navigation event.
+
+```js
+await page.waitForNavigation()
+```
+
+This is useful after clicks, form submissions, or JavaScript actions that navigate to another page.
+
+With timeout:
+
+```js
+await page.waitForNavigation({ timeout: 30000 })
+```
+
+With a click:
+
+```js
+await Promise.all([
+  page.waitForNavigation(),
+  page.click('button[type="submit"]')
+])
+```
+
+---
+
+### Get HTML
+
+Returns the current page HTML.
+
+```js
+const data = await page.evaluate(() => document.querySelector('*').outerHTML);
+return data;
+```
+
+The returned HTML is sent in the API response `data` field.
+
+Equivalent shorter command:
+
+```js
+return await page.content()
+```
+
+Use this when you need to inspect the page structure before choosing selectors.
+
+---
+
+### Get Uploaded File Path
+
+Resolves a previously uploaded file hash to an absolute path on the API server.
+
+```js
+var fp = filePath('3467be4be524b5151d060be3b6db03273ee77f2b');
+console.log(fp);
+return fp;
+```
+
+The hash comes from:
+
+```text
+POST /puppeteer-robot/file/upload
+```
+
+Example upload response:
+
+```json
+{
+  "ok": true,
+  "hash": "3467be4be524b5151d060be3b6db03273ee77f2b"
+}
+```
+
+Use the resolved path with file inputs:
+
+```js
+const fp = filePath('3467be4be524b5151d060be3b6db03273ee77f2b')
+const input = await page.$('input[type="file"]')
+await input.uploadFile(fp)
+return { ok: true }
+```
+
+If the hash does not exist, `filePath(hash)` returns an empty string.
+
+---
+
+### Set Field on Page Context
+
+Runs JavaScript inside the browser page context and sets a field value directly through the DOM.
+
+```js
+return await page.evaluate(() => {
+  document.getElementsByName('q')[0].value = 'Puppeteer';
+  return {ok: true};
+})
+```
+
+This differs from `page.type`:
+
+- `page.type` simulates keyboard input.
+- `page.evaluate` changes the DOM directly inside the browser.
+
+Some pages listen for `input` or `change` events. If setting `.value` alone is not enough, dispatch events manually:
+
+```js
+return await page.evaluate(() => {
+  const input = document.getElementsByName('q')[0]
+  input.value = 'Puppeteer'
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  return { ok: true }
+})
+```
+
+## Sending Commands with REST
+
+```bash
+curl -sS -X PUT http://localhost:3000/puppeteer-robot/run \
+  -H 'Authorization: Bearer your-api-token' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "robotId": "robot-id",
+    "command": "await page.goto('\''https://google.com'\'')"
+  }'
+```
+
+For local development without `API_TOKEN`, remove the `Authorization` header.
+
+## Sending Commands with MCP
+
+Use the MCP tool:
+
+```text
+puppeteer_robot_run_command
+```
+
+Tool arguments:
+
+```json
+{
+  "robotId": "robot-id",
+  "command": "await page.goto('https://google.com')"
+}
+```
+
+## Practical Workflow
+
+1. Create a robot.
+2. Navigate to the target page.
+3. Take a screenshot or get HTML.
+4. Identify selectors.
+5. Send commands such as `page.type`, `page.click`, or `page.evaluate`.
+6. Wait for navigation or page changes when needed.
+7. Return values from commands when the caller needs structured data.
+
+Example:
+
+```js
+await page.goto('https://google.com')
+await page.waitForSelector('textarea[name="q"], input[name="q"]')
+return await page.evaluate(() => document.title)
+```
+
+## Safety Notes
+
+Commands execute arbitrary JavaScript with access to the current Puppeteer browser and page. Treat command execution as privileged access.
+
+Recommended precautions:
+
+- Use `API_TOKEN` outside local development.
+- Expose the API only to trusted clients.
+- Avoid running unknown commands.
+- Prefer explicit selectors and bounded waits.
+- Return small structured objects instead of large page dumps when possible.

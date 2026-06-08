@@ -1,6 +1,6 @@
 import { Component, OnInit, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { JsonPipe, NgClass } from '@angular/common'
+import { NgClass } from '@angular/common'
 import { ApisService } from '../../service/apis.service'
 import { WsService } from '../../service/ws.service'
 import { RobotInfo } from '../../api/puppeteer-robot-api'
@@ -12,7 +12,7 @@ interface CommandExample {
 
 @Component({
   selector: 'app-start-page',
-  imports: [FormsModule, JsonPipe, NgClass],
+  imports: [FormsModule, NgClass],
   templateUrl: './start-page.html',
   styleUrl: './start-page.css'
 })
@@ -51,6 +51,11 @@ export class StartPage implements OnInit {
   // Error modal
   showErrorModal = signal(false)
   selectedErrorInfo = signal<object | undefined>(undefined)
+  showReportErrorModal = signal(false)
+  reportErrorCode = signal('')
+  reportErrorMessage = signal('')
+  reportErrorDetails = signal('')
+  processingReportError = signal('')
 
   commandExamples: CommandExample[] = [
     { description: 'Navigate to a website', command: "await page.goto('https://google.com')" },
@@ -84,6 +89,75 @@ export class StartPage implements OnInit {
   closeErrorModal() {
     this.showErrorModal.set(false)
     this.selectedErrorInfo.set(undefined)
+  }
+
+  getSelectedErrorMessage(): string {
+    const errorInfo = this.selectedErrorInfo() as any
+    return errorInfo?.payload?.message || this.getSelectedErrorDescriptionField('message') || '-'
+  }
+
+  getSelectedErrorCode(): string {
+    const errorInfo = this.selectedErrorInfo() as any
+    return errorInfo?.payload?.errorCode || this.getSelectedErrorDescriptionField('errorCode') || '-'
+  }
+
+  getSelectedErrorDetails(): string {
+    return this.getSelectedErrorDescriptionField('details') || '-'
+  }
+
+  private getSelectedErrorDescriptionField(field: 'errorCode' | 'message' | 'details'): string {
+    const errorInfo = this.selectedErrorInfo() as any
+    const description = errorInfo?.payload?.description
+    if (!description) return ''
+
+    try {
+      const parsed = typeof description === 'string' ? JSON.parse(description) : description
+      return parsed?.[field] || ''
+    } catch (error) {
+      return field === 'details' ? description : ''
+    }
+  }
+
+  openReportErrorModal(info: RobotInfo) {
+    this.selectedRobotId.set(info.robotId)
+    this.reportErrorCode.set('')
+    this.reportErrorMessage.set('')
+    this.reportErrorDetails.set('')
+    this.showReportErrorModal.set(true)
+  }
+
+  closeReportErrorModal() {
+    this.showReportErrorModal.set(false)
+    this.selectedRobotId.set('')
+    this.reportErrorCode.set('')
+    this.reportErrorMessage.set('')
+    this.reportErrorDetails.set('')
+    this.processingReportError.set('')
+  }
+
+  async reportRobotError() {
+    const robotId = this.selectedRobotId()
+    const errorCode = this.reportErrorCode().trim()
+    const message = this.reportErrorMessage().trim()
+    const details = this.reportErrorDetails().trim()
+    if (!robotId || !errorCode || !message) return
+
+    try {
+      this.processingReportError.set(robotId)
+      const response = await this.apisService.reportRobotError(robotId, errorCode, message, details)
+      if (response.status === 'OK') {
+        this.showToastMessage('Robot error reported successfully.', 'success')
+        this.closeReportErrorModal()
+        await this.loadRobots()
+      } else {
+        this.showToastMessage(`Could not report robot error.\n${response.message || 'Unknown error'}`, 'error')
+      }
+    } catch (error) {
+      console.error('Error reporting robot error:', error)
+      this.showToastMessage('Error reporting robot error.', 'error')
+    } finally {
+      this.processingReportError.set('')
+    }
   }
 
   async loadHasIa() {

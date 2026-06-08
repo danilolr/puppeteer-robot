@@ -59,7 +59,7 @@ export class StartPage implements OnInit {
     { description: 'Wait for navigaton', command: "await page.waitForNavigation()" },
     { description: 'Get HTML', command: "const data = await page.evaluate(() => document.querySelector('*').outerHTML);\nreturn data;\n" },
     { description: 'Get Uploaded File Path', command: "var fp = filePath('3467be4be524b5151d060be3b6db03273ee77f2b');\nconsole.log(fp);\nreturn fp;"},
-    { description: 'Set field on page context', command: "return await page.evaluate(() => {\n  document.getElementsByName('q')[0].value = 'cefip';\n  return {ok: true};\n})"},
+    { description: 'Set field on page context', command: "return await page.evaluate(() => {\n  document.getElementsByName('q')[0].value = 'Puppeteer';\n  return {ok: true};\n})"},
   ]
 
   constructor(private readonly apisService: ApisService, private readonly wsService:WsService) {

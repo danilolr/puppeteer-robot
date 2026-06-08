@@ -8,10 +8,12 @@ import { WsGateway } from './service/ws.gateway'
 import { GeminiService } from './service/ia/gemmini.service'
 import { IaService } from './service/ia/ia.service'
 import { GroqService } from './service/ia/groq.service'
+import { McpController } from './mcp/mcp.controller'
+import { McpService } from './mcp/mcp.service'
 
 @Module({
   imports: [NestjsFormDataModule],
-  controllers: [RobotController],
-  providers: [RobotService, PuppeteerService, WsGateway, OllamaService, GeminiService, GroqService, IaService],
+  controllers: [RobotController, McpController],
+  providers: [RobotService, PuppeteerService, WsGateway, OllamaService, GeminiService, GroqService, IaService, McpService],
 })
 export class AppModule {}

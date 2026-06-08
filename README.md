@@ -45,7 +45,18 @@ This monorepo contains two projects:
    - **API** at [http://localhost:3000/puppeteer-robot/api/v1/swagger](http://localhost:3000/puppeteer-robot/api/v1/swagger)
    - **Frontend** at [http://localhost:8080](http://localhost:8080)
 
-3. **Stop the services:**
+3. **Test** :
+
+   - Open **UI** at [http://localhost:8080](http://localhost:8080)
+   - Click on "New Robot", set a optional pool name and "Create Robot"
+   - Click on "Send Command" and choose the "Navigate to a website" example. Click "Send Command".
+   - Click on "Screenshot" to see the loaded page
+   - Click on "Send Command" and choose the "Set field on page context" example. Click "Send Command".
+   - Click on "Screenshot" to see the value on the search field
+   - Click on "Send Command" and type "page.keyboard.type("\n");" on the command. Click "Send Command".
+   - Click on "Screenshot" to see the search result
+
+4. **Stop the services:**
 
    ```bash
    docker compose down

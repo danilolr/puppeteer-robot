@@ -3,6 +3,6 @@
     "envName": "docker",
     "apiUrl": "http://localhost:3000",
     "wsPath": "http://localhost:3000",
-    "version": "1.5.5",
+    "version": "2.0.0",
     "apiToken": "123456"
 }

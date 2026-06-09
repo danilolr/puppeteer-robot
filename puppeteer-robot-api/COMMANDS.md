@@ -15,6 +15,7 @@ Commands are executed inside an async function created by the API. The command h
 - `browser`: the active Puppeteer `Browser`.
 - `page`: the latest opened Puppeteer `Page`.
 - `filePath(hash)`: helper that resolves an uploaded file path from its upload hash.
+- `downloadUrl(url, options)`: helper that downloads a URL through the API server and returns file metadata.
 
 Because the command body is already inside an async function, you can use `await` directly.
 
@@ -145,7 +146,7 @@ If the element may take time to appear, wait for it first:
 
 ```js
 await page.waitForSelector('input[name="password"]')
-await page.type('input[name="senha"]', '123456')
+await page.type('input[name="password"]', '123456')
 ```
 
 ---
@@ -284,6 +285,49 @@ return await page.evaluate(() => {
   return { ok: true }
 })
 ```
+
+---
+
+### Download the First PDF Link
+
+Finds the first PDF link in the current page, downloads it through the API server, and returns metadata plus a download URL.
+
+```js
+const firstPdfUrl = await page.evaluate(() => {
+  const link = document.querySelector('a.orders[href$=".pdf"], a[href$=".pdf"]')
+  return link ? link.href : null
+})
+
+if (!firstPdfUrl) {
+  return { ok: false, message: 'No PDF link found on page' }
+}
+
+const file = await downloadUrl(firstPdfUrl)
+
+return {
+  ok: true,
+  file
+}
+```
+
+Example response data:
+
+```json
+{
+  "ok": true,
+  "file": {
+    "ok": true,
+    "fileId": "f7c2b29d-8a76-4c6e-9df1-8fef233f15b3",
+    "fileName": "YHeLSxW26NB5l8G3.pdf",
+    "mimeType": "application/pdf",
+    "size": 123456,
+    "sourceUrl": "http://site.com/orders/6h25op4f/07wly13g/YHeLSxW26NB5l8G3.pdf",
+    "downloadUrl": "/puppeteer-robot/file/download/f7c2b29d-8a76-4c6e-9df1-8fef233f15b3"
+  }
+}
+```
+
+When `fileName` is not provided, the helper resolves the file name from `Content-Disposition` or from the URL path. The helper sends the current page cookies, user agent, and referer when downloading the URL. This helps with files protected by the current browser session.
 
 ## Sending Commands with REST
 

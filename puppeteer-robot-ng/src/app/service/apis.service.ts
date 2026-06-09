@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core"
 
-import { Configuration, IaApi, PuppeteerRobotApi, RobotCommandResp } from "../api/puppeteer-robot-api"
+import { Configuration, PuppeteerRobotApi, RobotCommandResp } from "../api/puppeteer-robot-api"
 import { ConfigService } from "./config.service"
 
 @Injectable({
@@ -16,11 +16,6 @@ export class ApisService {
 
   getPuppeteerRobotApi(): PuppeteerRobotApi {
     const api = new PuppeteerRobotApi(this.getConfig())
-    return api
-  }
-
-  getIaApi(): IaApi {
-    const api = new IaApi(this.getConfig())
     return api
   }
 

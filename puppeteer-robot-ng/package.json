@@ -1,7 +1,7 @@
 {
   "name": "puppeteer-robot-ng",
-  "version": "1.7.4",
-  "author": "Danilo",
+  "version": "2.0.0",
+  "author": "Danilo Luiz Rheinheimer",
   "license": "MIT",
   "scripts": {
     "ng": "ng",

@@ -44,7 +44,7 @@ export enum RunStatusEnum {
 
 export class RobotCommandResp {
 
-    @ApiProperty()
+    @ApiProperty({ enum: RunStatusEnum })
     status : RunStatusEnum
 
     @ApiProperty({ required: false })
@@ -100,30 +100,7 @@ export class UploadResult {
 
 }
 
-export class IaReq {
-
-    @ApiProperty()
-    robotId: string
-
-    @ApiProperty()
-    query: string
-
-    @ApiProperty()
-    model: string
-    
-}
-
-export class IaModelsResp {
-
-    @ApiProperty()
-    ok : boolean
-
-    @ApiProperty({ required: false, isArray: true, type: String })
-    models?: string[]
-
-}
-
-export class IaResp {
+export class DownloadResult {
 
     @ApiProperty()
     ok : boolean
@@ -132,13 +109,22 @@ export class IaResp {
     message?: string
 
     @ApiProperty({ required: false })
-    html?: string
+    fileId?: string
 
     @ApiProperty({ required: false })
-    response?: string
+    fileName?: string
 
     @ApiProperty({ required: false })
-    prompt?: string
+    mimeType?: string
+
+    @ApiProperty({ required: false })
+    size?: number
+
+    @ApiProperty({ required: false })
+    sourceUrl?: string
+
+    @ApiProperty({ required: false })
+    downloadUrl?: string
 
 }
 

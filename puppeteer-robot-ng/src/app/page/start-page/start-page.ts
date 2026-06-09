@@ -19,7 +19,6 @@ interface CommandExample {
 export class StartPage implements OnInit {
 
   recs = signal<RobotInfo[]>([])
-  hasIa = signal<boolean>(false)
   isLoading = signal(true)
   showCommandModal = signal(false)
   selectedRobotId = signal('')
@@ -28,14 +27,6 @@ export class StartPage implements OnInit {
   screenshotData = signal('')
   processingScreenshot = signal('')
   processingCommand = signal(false)
-  processingQueryIa = signal(false)
-  showQueryIaModal = signal(false)
-  queryIaText = signal('')
-  selectedModel = signal('gemma2:9b')
-  showQueryIaResponseModal = signal(false)
-  queryIaResponse = signal('')
-  queryIaHtml = signal('')
-  activeResponseTab = signal<'response' | 'html'>('response')
   // Command response modal
   showCommandResponseModal = signal(false)
   commandResponseText = signal('')
@@ -47,7 +38,6 @@ export class StartPage implements OnInit {
   showToast = signal(false)
   toastMessage = signal('')
   toastType = signal<'success' | 'error'>('success')
-  iaModels = signal<string[]>([])
   // Error modal
   showErrorModal = signal(false)
   selectedErrorInfo = signal<object | undefined>(undefined)
@@ -59,12 +49,12 @@ export class StartPage implements OnInit {
 
   commandExamples: CommandExample[] = [
     { description: 'Navigate to a website', command: "await page.goto('https://google.com')" },
-    { description: 'Set field value', command: "await page.type('input[name=\"senha\"]', '123456')" },
+    { description: 'Set field on page context', command: "return await page.evaluate(() => {\n  document.getElementsByName('q')[0].value = 'Puppeteer';\n  return {ok: true};\n})"},
+    { description: 'Set field value (type)', command: "await page.type('textarea[name=\"q\"]', 'Puppeteer')" },
     { description: 'Button click', command: "await page.click('button[type=\"submit\"]')" },
     { description: 'Wait for navigaton', command: "await page.waitForNavigation()" },
     { description: 'Get HTML', command: "const data = await page.evaluate(() => document.querySelector('*').outerHTML);\nreturn data;\n" },
     { description: 'Get Uploaded File Path', command: "var fp = filePath('3467be4be524b5151d060be3b6db03273ee77f2b');\nconsole.log(fp);\nreturn fp;"},
-    { description: 'Set field on page context', command: "return await page.evaluate(() => {\n  document.getElementsByName('q')[0].value = 'Puppeteer';\n  return {ok: true};\n})"},
   ]
 
   constructor(private readonly apisService: ApisService, private readonly wsService:WsService) {
@@ -75,7 +65,6 @@ export class StartPage implements OnInit {
   }
 
   async ngOnInit() {
-    await this.loadHasIa()
     await this.loadRobots()
   }
 
@@ -160,22 +149,6 @@ export class StartPage implements OnInit {
     }
   }
 
-  async loadHasIa() {
-    try {
-      const api = this.apisService.getIaApi()
-      const status = await api.robotControllerIaModels()
-      this.hasIa.set(status.models?.length! > 0)
-      this.iaModels.set(status.models || [])
-      // Set default model to first available model
-      if (status.models && status.models.length > 0) {
-        this.selectedModel.set(status.models[0])
-      }
-    } catch (error) {
-      console.error('Error checking IA status:', error)
-      this.hasIa.set(false)
-    }
-  }
-
   async loadRobots() {
     try {
       this.isLoading.set(true)
@@ -221,34 +194,6 @@ export class StartPage implements OnInit {
   async deleteRobot(info: RobotInfo) {
       const api = this.apisService.getPuppeteerRobotApi()
       await api.robotControllerDelete({id: info.robotId})
-  }
-
-  async queryIa(info: RobotInfo, query: string) {
-      try {
-        const api = this.apisService.getIaApi()
-        const resp = await api.robotControllerRunIa({iaReq: {robotId: info.robotId, query: query, model: this.selectedModel()}})
-        console.log(resp)
-        
-        if (resp) {
-          if (resp.ok) {
-            // Show response in modal
-            this.queryIaResponse.set(resp.response || '')
-            this.queryIaHtml.set(resp.html || '')
-            this.activeResponseTab.set('response')
-            this.showQueryIaResponseModal.set(true)
-          } else {
-            // Show error message
-            alert(`Query failed: ${resp.message || 'Unknown error'}`)
-          }
-        }
-        return resp
-      } catch (error) {
-        console.error('Error in queryIa:', error)
-        alert('Error executing query. Please try again.')
-        return null
-      } finally {
-        this.processingQueryIa.set(false)
-      }
   }
 
   openNewRobotModal() {
@@ -313,31 +258,6 @@ export class StartPage implements OnInit {
     }
   }
 
-  openQueryIaModal(info: RobotInfo) {
-    this.selectedRobotId.set(info.robotId)
-    this.queryIaText.set('')
-    this.showQueryIaModal.set(true)
-  }
-
-  closeQueryIaModal() {
-    this.showQueryIaModal.set(false)
-    this.selectedRobotId.set('')
-    this.queryIaText.set('')
-    // Keep the selected model, don't reset it
-    this.processingQueryIa.set(false)
-  }
-
-  closeQueryIaResponseModal() {
-    this.showQueryIaResponseModal.set(false)
-    this.queryIaResponse.set('')
-    this.queryIaHtml.set('')
-    this.activeResponseTab.set('response')
-  }
-
-  setActiveResponseTab(tab: 'response' | 'html') {
-    this.activeResponseTab.set(tab)
-  }
-
   async executeCommand() {
     if (this.commandText().trim() && this.selectedRobotId()) {
       const robotId = this.selectedRobotId()
@@ -397,26 +317,6 @@ export class StartPage implements OnInit {
         alert('Error sending command. Please try again.')
         return null
       }
-  }
-
-  async executeQueryIa() {
-    if (this.queryIaText().trim() && this.selectedRobotId()) {
-      const robotId = this.selectedRobotId()
-      const query = this.queryIaText()
-      
-      try {
-        this.processingQueryIa.set(true)
-        // Find the robot info
-        const robot = this.recs().find(r => r.robotId === robotId)
-        if (robot) {
-          await this.queryIa(robot, query)
-        }
-        this.closeQueryIaModal()
-      } catch (error) {
-        this.processingQueryIa.set(false)
-        console.error('Error in executeQueryIa:', error)
-      }
-    }
   }
 
   closeCommandResponseModal() {

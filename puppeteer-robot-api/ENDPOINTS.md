@@ -458,109 +458,56 @@ curl -sS -X DELETE http://localhost:3000/puppeteer-robot/file/delete/3467be4be52
 
 ---
 
-### `PUT /puppeteer-robot/ia/run`
+### `GET /puppeteer-robot/file/download/:fileId`
 
-Asks an AI model a question based on the current HTML content of a robot page.
+Downloads a file previously saved by the command helper `downloadUrl(url, options)`.
 
-The service first calls Puppeteer to retrieve `page.content()`. Then it builds a prompt containing the HTML and sends it to the selected AI provider.
-
-Available providers depend on environment variables:
-
-- `GEMINI_API_KEY`
-- `GROQ_API_KEY`
-- `OLLAMA_API_URL`
-
-#### Request Body
-
-```json
-{
-  "robotId": "b6e8e947-ae84-4e8f-9c40-7794ef35f56f",
-  "query": "What is the page title?",
-  "model": "groq/llama-3.1-8b-instant"
-}
-```
-
-The `model` value must use:
+Downloaded files are stored under:
 
 ```text
-provider/model-name
+${TEMP_FILE_PATH}/download/<fileId>/
 ```
 
-Examples:
+The directory contains:
 
 ```text
-groq/llama-3.1-8b-instant
-gemini/gemini-2.5-flash
-ollama/gemma2:9b
+metadata.json
+<downloaded-file>
 ```
+
+#### Path Parameters
+
+| Name | Type | Required | Description |
+|---|---|---:|---|
+| `fileId` | string | yes | Downloaded file ID returned by `downloadUrl`. |
 
 #### Response
 
-```json
-{
-  "ok": true,
-  "response": "The page title is Example Domain.",
-  "html": "<html>...</html>",
-  "prompt": "Responda a pergunta..."
-}
+Returns the binary file with:
+
+```text
+Content-Type: <metadata mimeType>
+Content-Disposition: attachment; filename="<metadata fileName>"
 ```
 
-If the robot is not found or page content cannot be retrieved:
+If the file does not exist:
 
 ```json
 {
   "ok": false,
-  "response": "Erro ao obter conteúdo da página: Instance not found ..."
+  "message": "Downloaded file not found"
 }
 ```
 
 #### Example
 
 ```bash
-curl -sS -X PUT http://localhost:3000/puppeteer-robot/ia/run \
+curl -sS http://localhost:3000/puppeteer-robot/file/download/f7c2b29d-8a76-4c6e-9df1-8fef233f15b3 \
   -H 'Authorization: Bearer your-api-token' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "robotId": "b6e8e947-ae84-4e8f-9c40-7794ef35f56f",
-    "query": "What is this page about?",
-    "model": "gemini/gemini-2.5-flash"
-  }'
+  -o document.pdf
 ```
 
 ---
-
-### `GET /puppeteer-robot/ia/models`
-
-Lists available AI models based on configured providers.
-
-#### Response
-
-```json
-{
-  "ok": true,
-  "models": [
-    "gemini/gemini-2.5-flash",
-    "groq/llama-3.1-8b-instant",
-    "ollama/gemma2:9b"
-  ]
-}
-```
-
-If no AI provider is configured:
-
-```json
-{
-  "ok": true,
-  "models": []
-}
-```
-
-#### Example
-
-```bash
-curl -sS http://localhost:3000/puppeteer-robot/ia/models \
-  -H 'Authorization: Bearer your-api-token'
-```
 
 ## MCP Endpoint
 
@@ -657,6 +604,3 @@ Server broadcasts:
 | `TEMP_FILE_PATH` | Base directory for temporary upload files. |
 | `DEV_MODE` | If `true`, disables auth and launches local Chrome in non-headless mode. |
 | `API_TOKEN` | Bearer token required when not in development mode. |
-| `GEMINI_API_KEY` | Enables Gemini AI provider. |
-| `GROQ_API_KEY` | Enables Groq AI provider. |
-| `OLLAMA_API_URL` | Enables Ollama AI provider. Usually points to an Ollama generate endpoint. |

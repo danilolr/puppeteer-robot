@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Post, Put, Res, UseGuards } from '@nestjs/common'
 import { RobotService } from 'src/service/robot.service'
 import { ApiBearerAuth, ApiConsumes, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IaModelsResp, IaReq, IaResp, RobotCommandReq, RobotCommandResp, RobotCreateResp, RobotErrorReq, RobotInfo, UploadParams, UploadResult } from 'src/model/robot.model';
+import { DownloadResult, RobotCommandReq, RobotCommandResp, RobotCreateResp, RobotErrorReq, RobotInfo, UploadParams, UploadResult } from 'src/model/robot.model';
 import { FormDataRequest } from 'nestjs-form-data';
 import { AuthGuard } from 'src/service/auth.guard';
+import { Response } from 'express';
 
 @ApiBearerAuth()
 @Controller('puppeteer-robot')
@@ -90,6 +91,26 @@ export class RobotController {
     return this.robotService.upload(params.file)
   }
 
+  @Get("file/download/:fileId")
+  @ApiTags('puppeteer-robot')
+  @ApiResponse({
+    status: 200,
+    description: 'Downloaded file',
+    type: DownloadResult,
+  })
+  async downloadFile(@Param("fileId") fileId: string, @Res() res: Response): Promise<void> {
+    const result = this.robotService.getDownloadedFile(fileId)
+    if (!result.ok || !result.filePath || !result.metadata) {
+      res.status(404).json({ ok: false, message: result.message || 'Downloaded file not found' })
+      return
+    }
+
+    const fileName = result.metadata.fileName || 'download'
+    res.setHeader('Content-Type', result.metadata.mimeType || 'application/octet-stream')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    res.download(result.filePath, fileName)
+  }
+
   @Delete("file/delete/:hash")
   @ApiTags('puppeteer-robot')
   @ApiResponse({
@@ -99,26 +120,6 @@ export class RobotController {
   })
   async deleteFile(@Param("hash") hash: string): Promise<boolean> {
     return this.robotService.deleteFile(hash)
-  }
-
-  @Put('/ia/run')
-  @ApiTags('ia')
-  @ApiResponse({
-    status: 200,
-    type: IaResp,
-  })
-  async runIa(@Body() dto: IaReq): Promise<IaResp> {
-    return this.robotService.runIa(dto)
-  }
-
-  @Get('/ia/models')
-  @ApiTags('ia')
-  @ApiResponse({
-    status: 200,
-    type: IaModelsResp,
-  })
-  async iaModels(): Promise<IaModelsResp> {
-    return this.robotService.getIaModels()
   }
 
 }

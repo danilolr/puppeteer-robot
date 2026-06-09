@@ -1,10 +1,8 @@
 import { Injectable } from "@nestjs/common/decorators/core/injectable.decorator"
 import { PuppeteerService } from "./puppeteer.service"
-import { IaModelsResp, IaReq, IaResp, RobotCommandReq, RobotCommandResp, RobotCreateResp, RobotErrorReq, RobotInfo, RunStatusEnum, UploadResult } from "src/model/robot.model"
+import { DownloadResult, RobotCommandReq, RobotCommandResp, RobotCreateResp, RobotErrorReq, RobotInfo, UploadResult } from "src/model/robot.model"
 import { FileSystemStoredFile } from "nestjs-form-data"
 import { WsGateway } from "./ws.gateway"
-import { IaService } from "./ia/ia.service"
-const fs = require('fs')
 
 const packageJson = require('../../package.json')
 export const VERSION = packageJson.version
@@ -13,7 +11,7 @@ export const VERSION = packageJson.version
 export class RobotService {
 
   constructor(private readonly puppeteerService: PuppeteerService, 
-    private readonly wsGateway: WsGateway, private readonly iaService: IaService
+    private readonly wsGateway: WsGateway
   ) { }
 
   async version(): Promise<string> {
@@ -44,6 +42,10 @@ export class RobotService {
     return this.puppeteerService.upload(file)
   }
 
+  getDownloadedFile(fileId: string): { ok: boolean, filePath?: string, metadata?: DownloadResult, message?: string } {
+    return this.puppeteerService.getDownloadedFile(fileId)
+  }
+
   async screenshot(id: string): Promise<RobotCommandResp> {
     return this.puppeteerService.screenshot(id)
   }
@@ -55,30 +57,6 @@ export class RobotService {
 
   async deleteFile(id: string): Promise<boolean> {
     return true
-  }
-
-  async runIa(dto: IaReq): Promise<IaResp> {
-    const html = await this.puppeteerService.getPageContent(dto.robotId)
-    if (!html.status || html.status !== RunStatusEnum.OK) {
-      return { ok: false, response: "Erro ao obter conteúdo da página: " + html.message }
-    }    
-    const prompt = `Responda a pergunta de forma clara e objetiva.
-Baseado no HTML da pagina forncecida no final desta mensagem responda a seguinte questão :
-
-"${dto.query}"
-
-O conteúdo da página está em HTML, utilize-o para responder a pergunta :
-${html.data}`
-    console.log("Prompt para IA:", prompt)
-    var t = new Date().getTime()
-    const response = await this.iaService.run(prompt, dto.model)
-    console.log("Tempo de resposta da IA:", new Date().getTime() - t, "ms")
-    return { ok: true, response: response, html: html.data, prompt: prompt}
-  }
-
-  async getIaModels(): Promise<IaModelsResp> {
-    var models: string[] = await this.iaService.getAvailableModels()
-    return { ok: true, models: models }
   }
 
 }

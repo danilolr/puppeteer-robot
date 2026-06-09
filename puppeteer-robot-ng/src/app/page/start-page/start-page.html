@@ -132,14 +132,6 @@
                       title="Send command to robot">
                       ⚡ Send Command
                     </button>
-                    @if (hasIa()) {
-                      <button 
-                        (click)="openQueryIaModal(rec)"
-                        class="text-green-600 hover:text-green-900 font-medium hover:underline transition-colors"
-                        title="Query AI about this robot">
-                        🤖 Query AI
-                      </button>
-                    }
                     <button
                       (click)="openReportErrorModal(rec)"
                       [disabled]="processingReportError() === rec.robotId"
@@ -318,87 +310,6 @@
     </div>
   }
 
-  <!-- Query IA Modal -->
-  @if (showQueryIaModal()) {
-    <div class="fixed inset-0 backdrop-blur-md overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-      <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        <!-- Modal Header -->
-        <div class="flex items-center justify-between p-6 border-b border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900">Query AI</h3>
-          <button 
-            (click)="closeQueryIaModal()"
-            class="text-gray-400 hover:text-gray-600 transition-colors">
-            <span class="sr-only">Close</span>
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <!-- Modal Body -->
-        <div class="p-6">
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Robot ID: <span class="font-semibold text-green-600">{{ selectedRobotId() }}</span>
-            </label>
-          </div>
-          
-          <div class="mb-6">
-            <label for="query-text" class="block text-sm font-medium text-gray-700 mb-2">
-              Query
-            </label>
-            <textarea
-              id="query-text"
-              [(ngModel)]="queryIaText"
-              rows="6"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
-            ></textarea>
-            
-            <!-- Model Selection -->
-            <div class="mt-3">
-              <label for="model-select" class="block text-sm font-medium text-gray-700 mb-2">
-                AI Model
-              </label>
-              <select
-                id="model-select"
-                [(ngModel)]="selectedModel"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white">
-                @for (model of iaModels(); track model) {
-                  <option [value]="model">{{ model }}</option>
-                }
-                @if (iaModels().length === 0) {
-                  <option value="" disabled>No models available</option>
-                }
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Modal Footer -->
-        <div class="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
-          <button 
-            (click)="closeQueryIaModal()"
-            [disabled]="processingQueryIa()"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
-            Cancel
-          </button>
-          <button 
-            (click)="executeQueryIa()"
-            [disabled]="!queryIaText().trim() || processingQueryIa()"
-            class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
-            @if (processingQueryIa()) {
-              <span class="inline-flex items-center">
-                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Processing...
-              </span>
-            } @else {
-              Query AI
-            }
-          </button>
-        </div>
-      </div>
-    </div>
-  }
 </div>
 
 <!-- Report Error Modal -->
@@ -486,68 +397,6 @@
           } @else {
             Report Error
           }
-        </button>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Query IA Response Modal -->
-@if (showQueryIaResponseModal()) {
-  <div class="fixed inset-0 backdrop-blur-md overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-    <div class="relative bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between p-6 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">AI Response</h3>
-        <button 
-          (click)="closeQueryIaResponseModal()"
-          class="text-gray-400 hover:text-gray-600 transition-colors">
-          <span class="sr-only">Close</span>
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      <!-- Tab Navigation -->
-      <div class="border-b border-gray-200">
-        <nav class="flex space-x-8 px-6" aria-label="Tabs">
-          <button
-            (click)="setActiveResponseTab('response')"
-            [class]="activeResponseTab() === 'response' 
-              ? 'border-green-500 text-green-600 py-2 px-1 border-b-2 font-medium text-sm' 
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-2 px-1 border-b-2 font-medium text-sm'">
-            Resposta
-          </button>
-          <button
-            (click)="setActiveResponseTab('html')"
-            [class]="activeResponseTab() === 'html' 
-              ? 'border-green-500 text-green-600 py-2 px-1 border-b-2 font-medium text-sm' 
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-2 px-1 border-b-2 font-medium text-sm'">
-            HTML
-          </button>
-        </nav>
-      </div>
-
-      <!-- Modal Body -->
-      <div class="p-6 overflow-auto max-h-[70vh]">
-        @if (activeResponseTab() === 'response') {
-          <div class="prose max-w-none">
-            <pre class="whitespace-pre-wrap bg-gray-50 p-4 rounded-lg text-sm">{{ queryIaResponse() }}</pre>
-          </div>
-        } @else {
-          <div class="prose max-w-none">
-            <pre class="whitespace-pre-wrap bg-gray-50 p-4 rounded-lg text-sm overflow-x-auto"><code>{{ queryIaHtml() }}</code></pre>
-          </div>
-        }
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
-        <button 
-          (click)="closeQueryIaResponseModal()"
-          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors">
-          Close
         </button>
       </div>
     </div>

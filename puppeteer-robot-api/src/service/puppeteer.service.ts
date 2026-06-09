@@ -1,4 +1,4 @@
-import { RobotCommandReq, RobotCommandResp, RobotCreateResp, RobotErrorReq, RobotInfo, RobotStatusEnum, RunStatusEnum, UploadResult } from "src/model/robot.model"
+import { DownloadResult, RobotCommandReq, RobotCommandResp, RobotCreateResp, RobotErrorReq, RobotInfo, RobotStatusEnum, RunStatusEnum, UploadResult } from "src/model/robot.model"
 import { PuppeteerInstance } from "./puppeteer.instance"
 import { Injectable } from '@nestjs/common'
 import { FileSystemStoredFile } from "nestjs-form-data"
@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid')
 import * as cryptoJS from "crypto-js"
 import { WsGateway } from "./ws.gateway"
 const fs = require('fs')
+const path = require('path')
 
 @Injectable()
 export class PuppeteerService {
@@ -198,6 +199,31 @@ export class PuppeteerService {
             size: file.size
         }))
         return { ok: true, hash: hash }
+    }
+
+    getDownloadedFile(fileId: string): { ok: boolean, filePath?: string, metadata?: DownloadResult, message?: string } {
+        if (!/^[a-zA-Z0-9-]+$/.test(fileId)) {
+            return { ok: false, message: 'Invalid file ID' }
+        }
+
+        const dir = `${process.env.TEMP_FILE_PATH}/download/${fileId}`
+        const metadataPath = `${dir}/metadata.json`
+        if (!fs.existsSync(metadataPath)) {
+            return { ok: false, message: 'Downloaded file not found' }
+        }
+
+        const metadata = JSON.parse(fs.readFileSync(metadataPath).toString()) as DownloadResult
+        const safeFileName = metadata.fileName ? path.basename(metadata.fileName) : ''
+        if (!safeFileName || safeFileName !== metadata.fileName) {
+            return { ok: false, message: 'Invalid downloaded file metadata' }
+        }
+
+        const filePath = path.join(dir, safeFileName)
+        if (!fs.existsSync(filePath)) {
+            return { ok: false, message: 'Downloaded file content not found' }
+        }
+
+        return { ok: true, filePath, metadata }
     }
 
     async getPageContent(robotId: string): Promise<RobotCommandResp> {

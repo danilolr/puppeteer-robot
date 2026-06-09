@@ -1,6 +1,8 @@
-import puppeteer, { Browser } from 'puppeteer-core'
+import puppeteer, { Browser, Page } from 'puppeteer-core'
 import { RobotCommandResp, RobotErrorReq, RobotStatusEnum, RunStatusEnum } from 'src/model/robot.model'
 const fs = require('fs')
+const path = require('path')
+const { randomUUID } = require('crypto')
 
 export class PuppeteerInstance {
     private browser: Browser
@@ -45,6 +47,7 @@ export class PuppeteerInstance {
             const pages = await browser.pages()
             const page = pages[pages.length - 1]
             const filePath = this.getFilePath
+            const downloadUrl = (url: string, options?: { fileName?: string }) => this.downloadUrl(url, options, page)
             var fnDef = `
 async function exec() {
     ${command} 
@@ -75,6 +78,99 @@ exec()`
             return ""
         }
         return fp
+    }
+
+    async downloadUrl(url: string, options: { fileName?: string } | undefined, page: Page): Promise<any> {
+        try {
+            const sourceUrl = new URL(url)
+            if (sourceUrl.protocol !== 'http:' && sourceUrl.protocol !== 'https:') {
+                return { ok: false, message: `Unsupported download URL protocol: ${sourceUrl.protocol}` }
+            }
+
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), 60000)
+
+            const cookies = await page.cookies(sourceUrl.toString())
+            const cookieHeader = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+            const userAgent = await page.evaluate(() => navigator.userAgent)
+
+            let response: Awaited<ReturnType<typeof fetch>>
+            try {
+                response = await fetch(sourceUrl.toString(), {
+                    headers: {
+                        'User-Agent': userAgent,
+                        'Referer': page.url(),
+                        ...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
+                    },
+                    signal: controller.signal,
+                })
+            } finally {
+                clearTimeout(timeout)
+            }
+
+            if (!response.ok) {
+                return { ok: false, message: `Download failed: ${response.status} ${response.statusText}` }
+            }
+
+            const arrayBuffer = await response.arrayBuffer()
+            const buffer = Buffer.from(arrayBuffer)
+            const mimeType = response.headers.get('content-type')?.split(';')[0]?.trim() || 'application/octet-stream'
+            const fileName = this.resolveDownloadFileName(options?.fileName, response.headers.get('content-disposition'), sourceUrl, mimeType)
+            const fileId = randomUUID()
+            const dir = `${process.env.TEMP_FILE_PATH}/download/${fileId}`
+            const fileDiskPath = `${dir}/${fileName}`
+
+            fs.mkdirSync(dir, { recursive: true })
+            fs.writeFileSync(fileDiskPath, buffer)
+
+            const metadata = {
+                ok: true,
+                fileId,
+                fileName,
+                mimeType,
+                size: buffer.length,
+                sourceUrl: sourceUrl.toString(),
+                downloadedAt: new Date().toISOString(),
+                robotId: this.insanceId,
+                downloadUrl: `/puppeteer-robot/file/download/${fileId}`,
+            }
+            fs.writeFileSync(`${dir}/metadata.json`, JSON.stringify(metadata))
+            return metadata
+        } catch (error) {
+            return { ok: false, message: `Download failed: ${error.message}` }
+        }
+    }
+
+    private resolveDownloadFileName(fileName: string | undefined, contentDisposition: string | null, sourceUrl: URL, mimeType: string): string {
+        const fromDisposition = this.fileNameFromContentDisposition(contentDisposition)
+        const fromUrl = path.basename(sourceUrl.pathname)
+        const resolved = fileName || fromDisposition || fromUrl || 'download'
+        const safeName = this.sanitizeFileName(resolved)
+        if (!path.extname(safeName) && mimeType === 'application/pdf') {
+            return `${safeName}.pdf`
+        }
+        return safeName
+    }
+
+    private fileNameFromContentDisposition(contentDisposition: string | null): string {
+        if (!contentDisposition) {
+            return ''
+        }
+        const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+        if (utf8Match?.[1]) {
+            return decodeURIComponent(utf8Match[1].trim())
+        }
+        const match = contentDisposition.match(/filename="?([^";]+)"?/i)
+        return match?.[1]?.trim() || ''
+    }
+
+    private sanitizeFileName(fileName: string): string {
+        const sanitized = fileName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^\w.-]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+        return sanitized || 'download'
     }
 
     async handleError(dto: RobotErrorReq): Promise<RobotCommandResp> {

@@ -528,12 +528,24 @@ See the root `MCP.md` file for detailed MCP usage and client configuration.
 Exposed MCP tools:
 
 ```text
-puppeteer_robot_version
-puppeteer_robot_create
-puppeteer_robot_list
-puppeteer_robot_delete
-puppeteer_robot_run_command
-puppeteer_robot_screenshot
+get_version
+create_robot
+list_robots
+delete_robot
+navigate
+type
+set_value
+click
+wait_for_navigation
+get_html
+get_text
+page_info
+upload_file_to_input
+download_url
+get_file
+run_command
+run_javascript_on_page
+take_screenshot
 ```
 
 ## Swagger

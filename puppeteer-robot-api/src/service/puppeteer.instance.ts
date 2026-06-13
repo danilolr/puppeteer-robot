@@ -3,6 +3,10 @@ import { RobotCommandResp, RobotErrorReq, RobotStatusEnum, RunStatusEnum } from 
 const fs = require('fs')
 const path = require('path')
 const { randomUUID } = require('crypto')
+const { Readable } = require('stream')
+const { pipeline } = require('stream/promises')
+
+type WaitUntil = 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2'
 
 export class PuppeteerInstance {
     private browser: Browser
@@ -63,6 +67,177 @@ exec()`
         console.log("--------------------------------")
     }
 
+    async runJavascriptOnPage(script: string, args: unknown = {}, timeoutMs = 30000): Promise<any> {
+        const page = await this.getCurrentPage()
+        const previousTimeout = page.getDefaultTimeout()
+        page.setDefaultTimeout(timeoutMs)
+        try {
+            return await page.evaluate(
+                async ({ script: scriptBody, args: scriptArgs }) => {
+                    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+                    const fn = new AsyncFunction('args', scriptBody)
+                    return await fn(scriptArgs)
+                },
+                { script, args },
+            )
+        } finally {
+            page.setDefaultTimeout(previousTimeout)
+        }
+    }
+
+    async navigate(url: string, waitUntil: WaitUntil = 'networkidle2', timeoutMs = 30000): Promise<any> {
+        const page = await this.getCurrentPage()
+        await page.goto(url, { waitUntil, timeout: timeoutMs })
+        return {
+            ok: true,
+            url: page.url(),
+            title: await page.title(),
+        }
+    }
+
+    async typeText(selector: string, text: string, clearBefore = false, timeoutMs = 30000): Promise<any> {
+        const page = await this.getCurrentPage()
+        const element = await page.waitForSelector(selector, { timeout: timeoutMs })
+        if (!element) {
+            return { ok: false, message: `Selector not found: ${selector}` }
+        }
+        const isVisible = await element.isVisible()
+        if (!isVisible) {
+            return { ok: false, message: `Element is not visible and cannot be typed into: ${selector}` }
+        }
+        if (clearBefore) {
+            await page.$eval(selector, (el: HTMLInputElement | HTMLTextAreaElement) => {
+                el.value = ''
+                el.dispatchEvent(new Event('input', { bubbles: true }))
+                el.dispatchEvent(new Event('change', { bubbles: true }))
+            })
+        }
+        await element.type(text)
+        return { ok: true, selector }
+    }
+
+    async setValue(selector: string, value: string, dispatchEvents: string[] = ['input', 'change'], timeoutMs = 30000): Promise<any> {
+        const page = await this.getCurrentPage()
+        await page.waitForSelector(selector, { visible: true, timeout: timeoutMs })
+        return await page.$eval(
+            selector,
+            (el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, args: { value: string, dispatchEvents: string[] }) => {
+                el.value = args.value
+                for (const eventName of args.dispatchEvents) {
+                    el.dispatchEvent(new Event(eventName, { bubbles: true }))
+                }
+                return { ok: true }
+            },
+            { value, dispatchEvents },
+        )
+    }
+
+    async click(selector: string, waitForNavigation = false, waitUntil: WaitUntil = 'networkidle2', timeoutMs = 30000): Promise<any> {
+        const page = await this.getCurrentPage()
+        const element = await page.waitForSelector(selector, { visible: true, timeout: timeoutMs })
+        if (!element) {
+            return { ok: false, message: `Selector not found: ${selector}` }
+        }
+
+        await element.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' }))
+        if (waitForNavigation) {
+            await Promise.all([
+                page.waitForNavigation({ waitUntil, timeout: timeoutMs }),
+                element.click(),
+            ])
+        } else {
+            await element.click()
+        }
+
+        return {
+            ok: true,
+            selector,
+            url: page.url(),
+            title: await page.title(),
+        }
+    }
+
+    async waitForNavigation(waitUntil: WaitUntil = 'networkidle2', timeoutMs = 30000): Promise<any> {
+        const page = await this.getCurrentPage()
+        await page.waitForNavigation({ waitUntil, timeout: timeoutMs })
+        return {
+            ok: true,
+            url: page.url(),
+            title: await page.title(),
+        }
+    }
+
+    async getHtml(): Promise<any> {
+        const page = await this.getCurrentPage()
+        return {
+            ok: true,
+            html: await page.content(),
+            url: page.url(),
+            title: await page.title(),
+        }
+    }
+
+    async getText(selector?: string): Promise<any> {
+        const page = await this.getCurrentPage()
+        const text = await page.evaluate((selectorArg?: string) => {
+            const element = selectorArg ? document.querySelector(selectorArg) : document.body
+            if (!element) {
+                return null
+            }
+            return (element as HTMLElement).innerText || element.textContent || ''
+        }, selector)
+        if (text === null) {
+            return { ok: false, message: `Selector not found: ${selector}` }
+        }
+        return {
+            ok: true,
+            text,
+            selector: selector || null,
+            url: page.url(),
+            title: await page.title(),
+        }
+    }
+
+    async uploadFileToInput(selector: string, hash: string, timeoutMs = 30000): Promise<any> {
+        const page = await this.getCurrentPage()
+        const resolvedPath = this.getFilePath(hash)
+        if (!resolvedPath) {
+            return { ok: false, message: `Uploaded file not found for hash: ${hash}` }
+        }
+
+        const element = await page.waitForSelector(selector, { timeout: timeoutMs })
+        if (!element) {
+            return { ok: false, message: `Selector not found: ${selector}` }
+        }
+
+        await (element as any).uploadFile(resolvedPath)
+        return {
+            ok: true,
+            selector,
+            hash,
+        }
+    }
+
+    async downloadUrlFromCurrentPage(url: string, fileName?: string): Promise<any> {
+        const page = await this.getCurrentPage()
+        const file = await this.downloadUrl(url, fileName ? { fileName } : undefined, page)
+        return {
+            ok: file.ok !== false,
+            file,
+        }
+    }
+
+    async pageInfo(): Promise<any> {
+        const page = await this.getCurrentPage()
+        const pages = await this.browser.pages()
+        return {
+            ok: true,
+            url: page.url(),
+            title: await page.title(),
+            pages: pages.length,
+        }
+    }
+
     getFilePath(hash: string): string {
         const fpm = `${process.env.TEMP_FILE_PATH}/upload/${hash}/metadata.json`
         if (!fs.existsSync(fpm)) {
@@ -78,6 +253,14 @@ exec()`
             return ""
         }
         return fp
+    }
+
+    private async getCurrentPage(): Promise<Page> {
+        const pages = await this.browser.pages()
+        if (pages.length === 0) {
+            throw new Error('No active Puppeteer page found')
+        }
+        return pages[pages.length - 1]
     }
 
     async downloadUrl(url: string, options: { fileName?: string } | undefined, page: Page): Promise<any> {
@@ -112,8 +295,6 @@ exec()`
                 return { ok: false, message: `Download failed: ${response.status} ${response.statusText}` }
             }
 
-            const arrayBuffer = await response.arrayBuffer()
-            const buffer = Buffer.from(arrayBuffer)
             const mimeType = response.headers.get('content-type')?.split(';')[0]?.trim() || 'application/octet-stream'
             const fileName = this.resolveDownloadFileName(options?.fileName, response.headers.get('content-disposition'), sourceUrl, mimeType)
             const fileId = randomUUID()
@@ -121,14 +302,20 @@ exec()`
             const fileDiskPath = `${dir}/${fileName}`
 
             fs.mkdirSync(dir, { recursive: true })
-            fs.writeFileSync(fileDiskPath, buffer)
+            if (response.body) {
+                await pipeline(Readable.fromWeb(response.body as any), fs.createWriteStream(fileDiskPath))
+            } else {
+                const arrayBuffer = await response.arrayBuffer()
+                fs.writeFileSync(fileDiskPath, Buffer.from(arrayBuffer))
+            }
+            const size = fs.statSync(fileDiskPath).size
 
             const metadata = {
                 ok: true,
                 fileId,
                 fileName,
                 mimeType,
-                size: buffer.length,
+                size,
                 sourceUrl: sourceUrl.toString(),
                 downloadedAt: new Date().toISOString(),
                 robotId: this.insanceId,

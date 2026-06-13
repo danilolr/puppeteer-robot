@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { Request, Response } from 'express'
 import { randomUUID } from 'node:crypto'
+import * as fs from 'node:fs'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { CallToolResult, isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
@@ -93,9 +94,10 @@ export class McpService {
       name: 'puppeteer-robot-api',
       version: VERSION,
     })
+    const waitUntilSchema = z.enum(['load', 'domcontentloaded', 'networkidle0', 'networkidle2'])
 
     server.registerTool(
-      'puppeteer_robot_version',
+      'get_version',
       {
         title: 'Puppeteer Robot Version',
         description: 'Returns the Puppeteer Robot API version.',
@@ -113,7 +115,7 @@ export class McpService {
     )
 
     server.registerTool(
-      'puppeteer_robot_create',
+      'create_robot',
       {
         title: 'Create Puppeteer Robot',
         description: 'Creates a Puppeteer robot instance, optionally associated with a pool.',
@@ -134,7 +136,7 @@ export class McpService {
     )
 
     server.registerTool(
-      'puppeteer_robot_list',
+      'list_robots',
       {
         title: 'List Puppeteer Robots',
         description: 'Lists all active Puppeteer robot instances.',
@@ -152,7 +154,7 @@ export class McpService {
     )
 
     server.registerTool(
-      'puppeteer_robot_delete',
+      'delete_robot',
       {
         title: 'Delete Puppeteer Robot',
         description: 'Deletes or releases a Puppeteer robot instance.',
@@ -173,7 +175,7 @@ export class McpService {
     )
 
     server.registerTool(
-      'puppeteer_robot_run_command',
+      'run_command',
       {
         title: 'Run Puppeteer Command',
         description: 'Runs JavaScript against an active Puppeteer robot page.',
@@ -195,7 +197,316 @@ export class McpService {
     )
 
     server.registerTool(
-      'puppeteer_robot_screenshot',
+      'run_javascript_on_page',
+      {
+        title: 'Run JavaScript on Puppeteer Page',
+        description: 'Runs JavaScript inside the browser page context with access to window, document, DOM APIs, localStorage, and page fetch.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID that will execute the script.'),
+          script: z.string().min(1).describe('JavaScript function body to execute inside the page context. Use return to send data back. Do not wrap in an async IIFE.'),
+          args: z.any().optional().describe('Optional serializable value available inside the script as args.'),
+          timeoutMs: z.number().int().positive().optional().describe('Page evaluation timeout in milliseconds. Defaults to 30000.'),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
+      },
+      async ({ robotId, script, args, timeoutMs }) => {
+        const response = await this.robotService.runJavascriptOnPage(robotId, script, args, timeoutMs)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'navigate',
+      {
+        title: 'Navigate Puppeteer Robot',
+        description: 'Navigates the robot page to a URL and returns the resulting page URL and title.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID that will navigate.'),
+          url: z.string().url().describe('URL to open.'),
+          waitUntil: waitUntilSchema.optional().describe('Puppeteer navigation wait condition. Defaults to networkidle2.'),
+          timeoutMs: z.number().int().positive().optional().describe('Navigation timeout in milliseconds. Defaults to 30000.'),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
+      },
+      async ({ robotId, url, waitUntil, timeoutMs }) => {
+        const response = await this.robotService.navigate(robotId, url, waitUntil, timeoutMs)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'type',
+      {
+        title: 'Type Text in Puppeteer Robot',
+        description: 'Types text into an editable element selected by CSS selector.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+          selector: z.string().min(1).describe('CSS selector for the editable element.'),
+          text: z.string().describe('Text to type.'),
+          clearBefore: z.boolean().optional().describe('Whether to clear the current field value before typing. Defaults to false.'),
+          timeoutMs: z.number().int().positive().optional().describe('Selector timeout in milliseconds. Defaults to 30000.'),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      async ({ robotId, selector, text, clearBefore, timeoutMs }) => {
+        const response = await this.robotService.typeText(robotId, selector, text, clearBefore, timeoutMs)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'set_value',
+      {
+        title: 'Set Field Value in Puppeteer Robot',
+        description: 'Sets a form field value directly in the page DOM and optionally dispatches DOM events.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+          selector: z.string().min(1).describe('CSS selector for the target element.'),
+          value: z.string().describe('Value to assign.'),
+          dispatchEvents: z.array(z.string().min(1)).optional().describe('DOM events to dispatch after setting the value. Defaults to input and change.'),
+          timeoutMs: z.number().int().positive().optional().describe('Selector timeout in milliseconds. Defaults to 30000.'),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      async ({ robotId, selector, value, dispatchEvents, timeoutMs }) => {
+        const response = await this.robotService.setValue(robotId, selector, value, dispatchEvents, timeoutMs)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'click',
+      {
+        title: 'Click Element in Puppeteer Robot',
+        description: 'Clicks an element selected by CSS selector, optionally waiting for navigation.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+          selector: z.string().min(1).describe('CSS selector for the element to click.'),
+          waitForNavigation: z.boolean().optional().describe('Whether to wait for navigation caused by the click. Defaults to false.'),
+          waitUntil: waitUntilSchema.optional().describe('Navigation wait condition when waitForNavigation is true. Defaults to networkidle2.'),
+          timeoutMs: z.number().int().positive().optional().describe('Selector/navigation timeout in milliseconds. Defaults to 30000.'),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
+      },
+      async ({ robotId, selector, waitForNavigation, waitUntil, timeoutMs }) => {
+        const response = await this.robotService.click(robotId, selector, waitForNavigation, waitUntil, timeoutMs)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'wait_for_navigation',
+      {
+        title: 'Wait for Puppeteer Navigation',
+        description: 'Waits for the current robot page to finish a navigation.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+          waitUntil: waitUntilSchema.optional().describe('Puppeteer navigation wait condition. Defaults to networkidle2.'),
+          timeoutMs: z.number().int().positive().optional().describe('Navigation timeout in milliseconds. Defaults to 30000.'),
+        },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      async ({ robotId, waitUntil, timeoutMs }) => {
+        const response = await this.robotService.waitForNavigation(robotId, waitUntil, timeoutMs)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'get_html',
+      {
+        title: 'Get Puppeteer Page HTML',
+        description: 'Returns the current page HTML, URL, and title.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+        },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      async ({ robotId }) => {
+        const response = await this.robotService.getHtml(robotId)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'get_text',
+      {
+        title: 'Get Puppeteer Page Text',
+        description: 'Returns visible text from the whole page or from a selected element.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+          selector: z.string().optional().describe('Optional CSS selector. If omitted, document.body is used.'),
+        },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      async ({ robotId, selector }) => {
+        const response = await this.robotService.getText(robotId, selector)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'upload_file_to_input',
+      {
+        title: 'Upload File to Input',
+        description: 'Uploads a previously uploaded server file to a page input[type=file].',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+          selector: z.string().min(1).describe('CSS selector for the file input.'),
+          hash: z.string().min(1).describe('Upload hash returned by the upload endpoint.'),
+          timeoutMs: z.number().int().positive().optional().describe('Selector timeout in milliseconds. Defaults to 30000.'),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      async ({ robotId, selector, hash, timeoutMs }) => {
+        const response = await this.robotService.uploadFileToInput(robotId, selector, hash, timeoutMs)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'download_url',
+      {
+        title: 'Download URL with Puppeteer Session',
+        description: 'Downloads a URL through the API server using the current page cookies, user agent, and referer.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+          url: z.string().url().describe('HTTP or HTTPS URL to download.'),
+          fileName: z.string().optional().describe('Optional file name to use when saving the downloaded file.'),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
+      },
+      async ({ robotId, url, fileName }) => {
+        const response = await this.robotService.downloadUrl(robotId, url, fileName)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'get_file',
+      {
+        title: 'Get Downloaded File',
+        description: 'Returns a previously downloaded file as MCP embedded resource content with base64 data.',
+        inputSchema: {
+          fileId: z.string().min(1).describe('Downloaded file ID returned by download_url or downloadUrl.'),
+        },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      async ({ fileId }) => {
+        const result = this.robotService.getDownloadedFile(fileId)
+        if (!result.ok || !result.filePath || !result.metadata) {
+          return this.errorResult({ ok: false, message: result.message || 'Downloaded file not found' })
+        }
+
+        const base64 = fs.readFileSync(result.filePath).toString('base64')
+        const fileName = result.metadata.fileName || 'download'
+        const mimeType = result.metadata.mimeType || 'application/octet-stream'
+        const structuredContent = {
+          ok: true,
+          fileId,
+          fileName,
+          mimeType,
+          size: result.metadata.size,
+        }
+
+        return {
+          content: [
+            {
+              type: 'resource',
+              resource: {
+                uri: `puppeteer-robot-file://${fileId}/${fileName}`,
+                mimeType,
+                blob: base64,
+              },
+            },
+            {
+              type: 'text',
+              text: JSON.stringify(structuredContent, null, 2),
+            },
+          ],
+          structuredContent,
+        }
+      },
+    )
+
+    server.registerTool(
+      'page_info',
+      {
+        title: 'Get Puppeteer Page Info',
+        description: 'Returns lightweight information about the current robot page.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+        },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      async ({ robotId }) => {
+        const response = await this.robotService.pageInfo(robotId)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
+      'take_screenshot',
       {
         title: 'Take Puppeteer Screenshot',
         description: 'Takes a PNG screenshot from an active Puppeteer robot page.',

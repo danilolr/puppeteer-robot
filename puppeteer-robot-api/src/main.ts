@@ -6,6 +6,14 @@ import { VERSION } from './service/robot.service'
 import * as express from 'express'
 import { AuthGuard } from './service/auth.guard'
 
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason)
+})
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error)
+})
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
   app.use(express.json({ limit: '50mb' }))

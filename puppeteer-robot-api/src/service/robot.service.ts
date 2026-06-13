@@ -32,6 +32,50 @@ export class RobotService {
     return this.puppeteerService.runCommand(dto)
   }
 
+  async navigate(robotId: string, url: string, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
+    return this.puppeteerService.navigate(robotId, url, waitUntil, timeoutMs)
+  }
+
+  async runJavascriptOnPage(robotId: string, script: string, args?: unknown, timeoutMs?: number): Promise<RobotCommandResp> {
+    return this.puppeteerService.runJavascriptOnPage(robotId, script, args, timeoutMs)
+  }
+
+  async typeText(robotId: string, selector: string, text: string, clearBefore?: boolean, timeoutMs?: number): Promise<RobotCommandResp> {
+    return this.puppeteerService.typeText(robotId, selector, text, clearBefore, timeoutMs)
+  }
+
+  async setValue(robotId: string, selector: string, value: string, dispatchEvents?: string[], timeoutMs?: number): Promise<RobotCommandResp> {
+    return this.puppeteerService.setValue(robotId, selector, value, dispatchEvents, timeoutMs)
+  }
+
+  async click(robotId: string, selector: string, waitForNavigation?: boolean, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
+    return this.puppeteerService.click(robotId, selector, waitForNavigation, waitUntil, timeoutMs)
+  }
+
+  async waitForNavigation(robotId: string, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
+    return this.puppeteerService.waitForNavigation(robotId, waitUntil, timeoutMs)
+  }
+
+  async getHtml(robotId: string): Promise<RobotCommandResp> {
+    return this.puppeteerService.getHtml(robotId)
+  }
+
+  async getText(robotId: string, selector?: string): Promise<RobotCommandResp> {
+    return this.puppeteerService.getText(robotId, selector)
+  }
+
+  async uploadFileToInput(robotId: string, selector: string, hash: string, timeoutMs?: number): Promise<RobotCommandResp> {
+    return this.puppeteerService.uploadFileToInput(robotId, selector, hash, timeoutMs)
+  }
+
+  async downloadUrl(robotId: string, url: string, fileName?: string): Promise<RobotCommandResp> {
+    return this.puppeteerService.downloadUrl(robotId, url, fileName)
+  }
+
+  async pageInfo(robotId: string): Promise<RobotCommandResp> {
+    return this.puppeteerService.pageInfo(robotId)
+  }
+
   async delete(id: string): Promise<boolean> {
     const response = await this.puppeteerService.delete(id)
     this.wsGateway.send('updateList', {})

@@ -114,6 +114,50 @@ export class PuppeteerService {
         }
     }
 
+    async navigate(robotId: string, url: string, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.navigate(url, waitUntil as any, timeoutMs))
+    }
+
+    async runJavascriptOnPage(robotId: string, script: string, args?: unknown, timeoutMs?: number): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.runJavascriptOnPage(script, args, timeoutMs))
+    }
+
+    async typeText(robotId: string, selector: string, text: string, clearBefore?: boolean, timeoutMs?: number): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.typeText(selector, text, clearBefore, timeoutMs))
+    }
+
+    async setValue(robotId: string, selector: string, value: string, dispatchEvents?: string[], timeoutMs?: number): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.setValue(selector, value, dispatchEvents, timeoutMs))
+    }
+
+    async click(robotId: string, selector: string, waitForNavigation?: boolean, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.click(selector, waitForNavigation, waitUntil as any, timeoutMs))
+    }
+
+    async waitForNavigation(robotId: string, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.waitForNavigation(waitUntil as any, timeoutMs))
+    }
+
+    async getHtml(robotId: string): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.getHtml())
+    }
+
+    async getText(robotId: string, selector?: string): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.getText(selector))
+    }
+
+    async uploadFileToInput(robotId: string, selector: string, hash: string, timeoutMs?: number): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.uploadFileToInput(selector, hash, timeoutMs))
+    }
+
+    async downloadUrl(robotId: string, url: string, fileName?: string): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.downloadUrlFromCurrentPage(url, fileName))
+    }
+
+    async pageInfo(robotId: string): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.pageInfo())
+    }
+
     async delete(robotId: string): Promise<boolean> {
         const instance = this.instances.get(robotId)
         const pool = instance?.pool
@@ -139,6 +183,39 @@ export class PuppeteerService {
         }
         this.wsGateway.send('updateList', {})
         return true
+    }
+
+    private async runInstanceOperation(robotId: string, operation: (instance: PuppeteerInstance) => Promise<any>): Promise<RobotCommandResp> {
+        const instance = this.instances.get(robotId)
+        if (!instance) {
+            return {
+                status: RunStatusEnum.ROBOT_NOT_FOUND,
+                message: 'Instance not found ' + robotId,
+                data: null
+            }
+        }
+
+        try {
+            const data = await operation(instance)
+            if (data && typeof data === 'object' && data.ok === false) {
+                return {
+                    status: RunStatusEnum.FUNCTION_RETURN_ERROR,
+                    message: data.message,
+                    data,
+                }
+            }
+            return {
+                status: RunStatusEnum.OK,
+                data,
+            }
+        } catch (error) {
+            console.error(error)
+            return {
+                status: RunStatusEnum.INTERNAL_ERROR,
+                message: error.message,
+                data: null
+            }
+        }
     }
 
     async screenshot(robotId: string): Promise<RobotCommandResp> {
@@ -188,7 +265,8 @@ export class PuppeteerService {
     }
 
     async upload(file: FileSystemStoredFile): Promise<UploadResult> {
-        const fileName = Buffer.from(file.originalName, 'latin1').toString('utf8')
+        const originalName = Buffer.from(file.originalName, 'latin1').toString('utf8')
+        const fileName = this.sanitizeFileName(path.basename(originalName))
         const buffer = file['buffer']
         const hash = cryptoJS.SHA1(cryptoJS.lib.WordArray.create(buffer)).toString()
         fs.mkdirSync(`${process.env.TEMP_FILE_PATH}/upload/${hash}`, { recursive: true })
@@ -199,6 +277,15 @@ export class PuppeteerService {
             size: file.size
         }))
         return { ok: true, hash: hash }
+    }
+
+    private sanitizeFileName(fileName: string): string {
+        const sanitized = fileName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^\w.-]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+        return sanitized || 'upload'
     }
 
     getDownloadedFile(fileId: string): { ok: boolean, filePath?: string, metadata?: DownloadResult, message?: string } {
@@ -246,7 +333,7 @@ export class PuppeteerService {
             return {
                 status: RunStatusEnum.INTERNAL_ERROR,
                 data: result.data,
-                message: result.data.message
+                message: result.message
             }
         }
     }

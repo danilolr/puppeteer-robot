@@ -32,17 +32,15 @@ If `DEV_MODE=true` or `API_TOKEN` is not configured, requests are allowed withou
 
 ## Exposed Tools
 
-### `puppeteer_robot_version`
+### Robot Lifecycle
+
+#### `get_version`
 
 Returns the backend API version.
 
-Calls:
+Input: none.
 
-```ts
-robotService.version()
-```
-
-### `puppeteer_robot_create`
+#### `create_robot`
 
 Creates a Puppeteer robot instance.
 
@@ -54,23 +52,13 @@ Input:
 }
 ```
 
-Calls:
-
-```ts
-robotService.create(pool ?? null)
-```
-
-### `puppeteer_robot_list`
+#### `list_robots`
 
 Lists active Puppeteer robot instances.
 
-Calls:
+Input: none.
 
-```ts
-robotService.list()
-```
-
-### `puppeteer_robot_delete`
+#### `delete_robot`
 
 Deletes or releases a Puppeteer robot instance.
 
@@ -82,36 +70,94 @@ Input:
 }
 ```
 
-Calls:
+### Page Navigation and Interaction
 
-```ts
-robotService.delete(robotId)
-```
+#### `navigate`
 
-### `puppeteer_robot_run_command`
-
-Runs JavaScript against an active Puppeteer robot page.
+Navigates the robot page to a URL and returns the resulting URL and title.
 
 Input:
 
 ```json
 {
   "robotId": "robot-id",
-  "command": "await page.goto('https://example.com')"
+  "url": "https://example.com",
+  "waitUntil": "networkidle2",
+  "timeoutMs": 30000
 }
 ```
 
-Calls:
+`waitUntil` is optional and accepts `load`, `domcontentloaded`, `networkidle0`, or `networkidle2`.
 
-```ts
-robotService.run({ robotId, command })
+#### `type`
+
+Types text into an editable element.
+
+The tool validates that the element exists and is visible. If the selector matches an element that is hidden, the tool returns a controlled error instead of trying to type into it.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "selector": "input[name=\"email\"]",
+  "text": "user@example.com",
+  "clearBefore": true,
+  "timeoutMs": 30000
+}
 ```
 
-This tool can execute arbitrary JavaScript in the Puppeteer context. Expose it only to trusted MCP clients.
+#### `set_value`
 
-### `puppeteer_robot_screenshot`
+Sets a form field value directly in the page DOM and dispatches events.
 
-Takes a screenshot from an active Puppeteer robot page.
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "selector": "input[name=\"email\"]",
+  "value": "user@example.com",
+  "dispatchEvents": ["input", "change"],
+  "timeoutMs": 30000
+}
+```
+
+#### `click`
+
+Clicks an element selected by CSS selector. It can optionally wait for navigation caused by the click.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "selector": "button[type=\"submit\"]",
+  "waitForNavigation": true,
+  "waitUntil": "networkidle2",
+  "timeoutMs": 30000
+}
+```
+
+#### `wait_for_navigation`
+
+Waits for the current robot page to finish navigation.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "waitUntil": "networkidle2",
+  "timeoutMs": 30000
+}
+```
+
+### Page Inspection
+
+#### `get_html`
+
+Returns the current page HTML, URL, and title.
 
 Input:
 
@@ -121,10 +167,45 @@ Input:
 }
 ```
 
-Calls:
+#### `get_text`
 
-```ts
-robotService.screenshot(robotId)
+Returns visible text from the page or from a selected element.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "selector": "main"
+}
+```
+
+If `selector` is omitted, the tool returns `document.body.innerText`.
+
+#### `page_info`
+
+Returns lightweight information about the current page.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id"
+}
+```
+
+Response data includes the current URL, title, and number of open pages.
+
+#### `take_screenshot`
+
+Takes a PNG screenshot from the active robot page.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id"
+}
 ```
 
 On success, the tool returns MCP image content:
@@ -136,6 +217,116 @@ On success, the tool returns MCP image content:
   "mimeType": "image/png"
 }
 ```
+
+### Files and Downloads
+
+#### `upload_file_to_input`
+
+Uploads a previously uploaded server file to a page `input[type=file]`.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "selector": "input[type=\"file\"]",
+  "hash": "upload-hash",
+  "timeoutMs": 30000
+}
+```
+
+#### `download_url`
+
+Downloads a URL through the API server using the current page cookies, user agent, and referer.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "url": "https://example.com/report.pdf",
+  "fileName": "report.pdf"
+}
+```
+
+The `fileName` field is optional. The response contains a `fileId` that can be used with `get_file`.
+
+#### `get_file`
+
+Returns a previously downloaded file as MCP embedded resource content with base64 data.
+
+Input:
+
+```json
+{
+  "fileId": "downloaded-file-id"
+}
+```
+
+The result includes:
+
+- MCP `resource` content with `blob` base64 data and the file MIME type.
+- JSON text/structured output with `fileId`, `fileName`, `mimeType`, and `size`.
+
+### Escape Hatch
+
+#### `run_command`
+
+Runs arbitrary JavaScript against an active Puppeteer robot page.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "command": "await page.goto('https://example.com')"
+}
+```
+
+This tool can execute arbitrary JavaScript in the Puppeteer context. Prefer the specific tools above for common actions, and expose this tool only to trusted MCP clients.
+
+Important: do not wrap the command in an async IIFE like `(async () => { ... })()`. The API already runs the command inside an async function, so commands should use `await` directly:
+
+```js
+await page.goto('https://example.com')
+return await page.title()
+```
+
+If an IIFE is sent without `return await`, the outer command can finish before the inner promise settles, causing uncaught asynchronous errors.
+
+#### `run_javascript_on_page`
+
+Runs JavaScript inside the browser page context. Use this when the script needs direct access to `window`, `document`, DOM APIs, `localStorage`, or `fetch` from the page.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "script": "document.getElementsByName('q')[0].value = 'Puppeteer'; return { ok: true };",
+  "args": {
+    "selector": "input[name=\"q\"]",
+    "value": "Puppeteer"
+  },
+  "timeoutMs": 30000
+}
+```
+
+The script is executed as an async function body inside `page.evaluate`. Use `await` directly and return serializable values.
+
+Correct:
+
+```js
+const input = document.querySelector(args.selector)
+input.value = args.value
+input.dispatchEvent(new Event('input', { bubbles: true }))
+input.dispatchEvent(new Event('change', { bubbles: true }))
+return { ok: true }
+```
+
+Do not wrap the script in `(async () => { ... })()`. The wrapper is already created by the backend.
+
+This tool does not expose Puppeteer objects such as `page`, `browser`, `downloadUrl`, or `filePath`. Use `run_command` only when those backend-side Puppeteer objects are required.
 
 ## Example MCP Client Configuration
 
@@ -223,7 +414,7 @@ curl -i -sS -X POST http://localhost:3000/puppeteer-robot/mcp \
     "id": 3,
     "method": "tools/call",
     "params": {
-      "name": "puppeteer_robot_version",
+      "name": "get_version",
       "arguments": {}
     }
   }'
@@ -236,4 +427,3 @@ For local development without `API_TOKEN`, remove the `Authorization` header fro
 - `puppeteer-robot-api/src/mcp/mcp.controller.ts`
 - `puppeteer-robot-api/src/mcp/mcp.service.ts`
 - `puppeteer-robot-api/src/app.module.ts`
-

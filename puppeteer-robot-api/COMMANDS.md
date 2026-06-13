@@ -3,10 +3,12 @@
 This document describes command examples that can be sent to a robot through:
 
 - REST: `PUT /puppeteer-robot/run`
-- MCP: `puppeteer_robot_run_command`
+- MCP: `run_command`
 - Angular UI: `Send Command to Robot`
 
 The examples below come from the Angular modal `Send Command to Robot`.
+
+For MCP agents, prefer the dedicated MCP tools such as `navigate`, `type`, `click`, `get_html`, `run_javascript_on_page`, and `upload_file_to_input`. Use `run_command` only as an escape hatch when a specific tool does not cover the workflow.
 
 ## Execution Context
 
@@ -18,6 +20,33 @@ Commands are executed inside an async function created by the API. The command h
 - `downloadUrl(url, options)`: helper that downloads a URL through the API server and returns file metadata.
 
 Because the command body is already inside an async function, you can use `await` directly.
+
+Do not wrap commands in an async IIFE such as `(async () => { ... })()`. The API already creates the async wrapper. If an agent sends an IIFE without `return await`, the outer command may finish with `undefined` while the inner promise keeps running in the background, which can produce uncaught asynchronous errors.
+
+Wrong:
+
+```js
+(async () => {
+  await page.goto('https://google.com')
+  return await page.title()
+})()
+```
+
+Correct:
+
+```js
+await page.goto('https://google.com')
+return await page.title()
+```
+
+If an IIFE is unavoidable, it must be returned and awaited:
+
+```js
+return await (async () => {
+  await page.goto('https://google.com')
+  return await page.title()
+})()
+```
 
 Example request:
 
@@ -132,6 +161,8 @@ await page.type('input[name="password"]', '123456')
 
 This uses Puppeteer's `page.type`, which sends keyboard events. The element must exist and be editable.
 
+In MCP, the `type` tool validates that the selected element is visible. If the element exists but is hidden, it returns a controlled error. Use `set_value` or `run_javascript_on_page` when the field exists in the DOM but is not directly visible/interactable.
+
 Common variations:
 
 ```js
@@ -220,15 +251,9 @@ Use this when you need to inspect the page structure before choosing selectors.
 
 ---
 
-### Get Uploaded File Path
+### Use Uploaded File in a File Input
 
-Resolves a previously uploaded file hash to an absolute path on the API server.
-
-```js
-var fp = filePath('3467be4be524b5151d060be3b6db03273ee77f2b');
-console.log(fp);
-return fp;
-```
+Resolves a previously uploaded file hash internally and uses it with a page file input.
 
 The hash comes from:
 
@@ -245,7 +270,7 @@ Example upload response:
 }
 ```
 
-Use the resolved path with file inputs:
+Use `filePath(hash)` only as an internal helper inside `run_command`; do not return or expose the resolved server path.
 
 ```js
 const fp = filePath('3467be4be524b5151d060be3b6db03273ee77f2b')
@@ -254,6 +279,8 @@ await input.uploadFile(fp)
 return { ok: true }
 ```
 
+For MCP agents, prefer `upload_file_to_input` instead of resolving or exposing server filesystem details.
+
 If the hash does not exist, `filePath(hash)` returns an empty string.
 
 ---
@@ -261,6 +288,15 @@ If the hash does not exist, `filePath(hash)` returns an empty string.
 ### Set Field on Page Context
 
 Runs JavaScript inside the browser page context and sets a field value directly through the DOM.
+
+When using MCP, prefer the dedicated `run_javascript_on_page` tool for this pattern. With that tool, send only the JavaScript body that should run inside the page:
+
+```js
+document.getElementsByName('q')[0].value = 'Puppeteer'
+return { ok: true }
+```
+
+The lower-level `run_command` form still works, but it must explicitly call `page.evaluate`:
 
 ```js
 return await page.evaluate(() => {
@@ -348,7 +384,7 @@ For local development without `API_TOKEN`, remove the `Authorization` header.
 Use the MCP tool:
 
 ```text
-puppeteer_robot_run_command
+run_command
 ```
 
 Tool arguments:

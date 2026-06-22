@@ -37,9 +37,8 @@ The application configuration is located in `src/assets/config.json`. You can ad
 {
     "production": false,
     "envName": "dev",
-    "apiUrl": "http://localhost:3000",
-    "wsPath": "http://localhost:3000",
-    "version": "1.0.0",
+    "apiUrl": "http://localhost:3080",
+    "wsPath": "http://localhost:3080",
     "apiToken": "your-api-token"
 }
 ```
@@ -56,7 +55,7 @@ Run the following command to start the development server:
 npm start
 ```
 
-Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+Navigate to `http://localhost:4221/`. The application will automatically reload if you change any of the source files.
 
 ## Building via Docker
 

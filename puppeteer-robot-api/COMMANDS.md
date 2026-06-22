@@ -8,7 +8,7 @@ This document describes command examples that can be sent to a robot through:
 
 The examples below come from the Angular modal `Send Command to Robot`.
 
-For MCP agents, prefer the dedicated MCP tools such as `navigate`, `type`, `click`, `get_html`, `run_javascript_on_page`, and `upload_file_to_input`. Use `run_command` only as an escape hatch when a specific tool does not cover the workflow.
+For MCP agents, prefer the dedicated MCP tools such as `navigate`, `type`, `click`, `inspect_interactive_elements`, `get_html`, `run_javascript_on_page`, and `upload_file_to_input`. Use `inspect_interactive_elements` before `get_html` when the goal is to discover fields, buttons, links, forms, or selectors. Use `run_command` only as an escape hatch when a specific tool does not cover the workflow.
 
 ## Execution Context
 

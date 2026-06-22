@@ -386,6 +386,38 @@ export class McpService {
     )
 
     server.registerTool(
+      'inspect_interactive_elements',
+      {
+        title: 'Inspect Interactive Elements',
+        description: 'Returns a compact structured inventory of forms, fields, buttons, links, labels, duplicate IDs, and iframes from the current page.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+          onlyVisible: z.boolean().optional().describe('When true, returns only visible/interactable elements. Defaults to true.'),
+          includeIframes: z.boolean().optional().describe('When true, inspects child iframes up to maxIframeDepth. Defaults to true.'),
+          maxIframeDepth: z.number().int().min(0).optional().describe('Maximum iframe nesting depth to inspect. Defaults to 2.'),
+          maxItems: z.number().int().positive().optional().describe('Maximum items returned per category. Defaults to 50.'),
+          maxTextLength: z.number().int().positive().optional().describe('Maximum length for textual fields. Defaults to 120.'),
+        },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      async ({ robotId, onlyVisible, includeIframes, maxIframeDepth, maxItems, maxTextLength }) => {
+        const response = await this.robotService.inspectInteractiveElements(robotId, {
+          onlyVisible,
+          includeIframes,
+          maxIframeDepth,
+          maxItems,
+          maxTextLength,
+        })
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
       'upload_file_to_input',
       {
         title: 'Upload File to Input',

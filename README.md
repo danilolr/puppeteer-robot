@@ -15,7 +15,6 @@ This monorepo contains two projects:
 
 - Browser automation via Puppeteer (headless Chromium)
 - Real-time communication through WebSockets
-- AI integration with Groq, Ollama and Gemini APIs
 - Swagger API documentation
 
 ---
@@ -42,12 +41,12 @@ This monorepo contains two projects:
    ```
 
    This will build and start:
-   - **API** at [http://localhost:3000/puppeteer-robot/api/v1/swagger](http://localhost:3000/puppeteer-robot/api/v1/swagger)
-   - **Frontend** at [http://localhost:8080](http://localhost:8080)
+   - **API** at [http://localhost:3080/puppeteer-robot/api/v1/swagger](http://localhost:3080/puppeteer-robot/api/v1/swagger)
+   - **Frontend** at [http://localhost:4221](http://localhost:4221)
 
 3. **Test** :
 
-   - Open **UI** at [http://localhost:8080](http://localhost:8080)
+   - Open **UI** at [http://localhost:4221](http://localhost:4221)
    - Click on "New Robot", set a optional pool name and "Create Robot"
    - Click on "Send Command" and choose the "Navigate to a website" example. Click "Send Command".
    - Click on "Screenshot" to see the loaded page
@@ -66,8 +65,8 @@ This monorepo contains two projects:
 
 | Service | Container Port | Host Port | URL |
 |---|---|---|---|
-| API (NestJS) | 3000 | 3000 | `http://localhost:3000/puppeteer-robot/api/v1/swagger` |
-| Frontend (Angular/Nginx) | 80 | 8080 | `http://localhost:8080` |
+| API (NestJS) | 3000 | 3080 | `http://localhost:3080/puppeteer-robot/api/v1/swagger` |
+| Frontend (Angular/Nginx) | 80 | 4221 | `http://localhost:4221` |
 
 ### Environment Variables (API)
 
@@ -76,9 +75,6 @@ The following environment variables are configured in `docker-compose.yml`:
 | Variable | Description |
 |---|---|
 | `TEMP_FILE_PATH` | Temporary file storage path inside the container |
-| `GROQ_API_KEY` | API key for Groq AI integration |
-| `GEMINI_API_KEY` | API key for Google Gemini AI integration |
-| `OLLAMA_API_URL` | Ollama URL for Ollama integration |
 | `API_TOKEN` | Authentication token for the API |
 
 
@@ -108,7 +104,7 @@ npm install
 npm start
 ```
 
-The Angular dev server will start on port `4200` by default.
+The Angular dev server will start on port `4221` by default.
 
 ---
 

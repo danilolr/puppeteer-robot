@@ -76,6 +76,16 @@ export class RobotService {
     return this.puppeteerService.pageInfo(robotId)
   }
 
+  async inspectInteractiveElements(robotId: string, options?: {
+    onlyVisible?: boolean
+    includeIframes?: boolean
+    maxIframeDepth?: number
+    maxItems?: number
+    maxTextLength?: number
+  }): Promise<RobotCommandResp> {
+    return this.puppeteerService.inspectInteractiveElements(robotId, options)
+  }
+
   async delete(id: string): Promise<boolean> {
     const response = await this.puppeteerService.delete(id)
     this.wsGateway.send('updateList', {})

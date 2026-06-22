@@ -540,6 +540,7 @@ wait_for_navigation
 get_html
 get_text
 page_info
+inspect_interactive_elements
 upload_file_to_input
 download_url
 get_file

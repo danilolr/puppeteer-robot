@@ -196,6 +196,37 @@ Input:
 
 Response data includes the current URL, title, and number of open pages.
 
+#### `inspect_interactive_elements`
+
+Returns a compact structured inventory of interactive elements from the current page, without returning the full HTML.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "onlyVisible": true,
+  "includeIframes": true,
+  "maxIframeDepth": 2,
+  "maxItems": 50,
+  "maxTextLength": 120
+}
+```
+
+The result includes:
+
+- current page URL and title;
+- `frames` with `framePath`, URL, name, and `frameSelectorHint`;
+- forms, inputs, textareas, selects, buttons, links, labels, and duplicate IDs;
+- `selectorHint` for each element;
+- visibility/interactivity flags;
+- bounding boxes;
+- truncation metadata.
+
+For elements inside iframes, `selectorHint` is relative to that iframe. Use `framePath`, `frameUrl`, `frameName`, and `frameSelectorHint` to identify the frame context. A main-page element has `framePath: []`; an element in the first iframe has `framePath: [0]`; nested iframe paths look like `[0, 2]`.
+
+This tool is the preferred way for MCP agents to discover fields, buttons, links, and selectors before choosing tools such as `type`, `set_value`, `click`, or `run_javascript_on_page`.
+
 #### `take_screenshot`
 
 Takes a PNG screenshot from the active robot page.

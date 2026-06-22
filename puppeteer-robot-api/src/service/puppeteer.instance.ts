@@ -169,9 +169,11 @@ exec()`
 
     async getHtml(): Promise<any> {
         const page = await this.getCurrentPage()
+        const html = await page.content()
+        console.log("Page HTML content length: " + html.length)
         return {
             ok: true,
-            html: await page.content(),
+            html: html,
             url: page.url(),
             title: await page.title(),
         }
@@ -189,6 +191,7 @@ exec()`
         if (text === null) {
             return { ok: false, message: `Selector not found: ${selector}` }
         }
+        console.log("Page text content length: " + text.length)
         return {
             ok: true,
             text,
@@ -235,6 +238,363 @@ exec()`
             url: page.url(),
             title: await page.title(),
             pages: pages.length,
+        }
+    }
+
+    async inspectInteractiveElements(options: {
+        onlyVisible?: boolean
+        includeIframes?: boolean
+        maxIframeDepth?: number
+        maxItems?: number
+        maxTextLength?: number
+    } = {}): Promise<any> {
+        const page = await this.getCurrentPage()
+        const onlyVisible = options.onlyVisible ?? true
+        const includeIframes = options.includeIframes ?? true
+        const maxIframeDepth = options.maxIframeDepth ?? 2
+        const maxItems = options.maxItems ?? 50
+        const maxTextLength = options.maxTextLength ?? 120
+        const frames = page.frames()
+        const mainFrame = page.mainFrame()
+        const framePathByFrame = new Map<any, number[]>()
+        const frameSelectorByFrame = new Map<any, string | null>()
+        framePathByFrame.set(mainFrame, [])
+        frameSelectorByFrame.set(mainFrame, null)
+
+        const childIndexes = new Map<any, number>()
+        for (const frame of frames) {
+            if (frame === mainFrame) continue
+            const parent = frame.parentFrame()
+            if (!parent) continue
+            const index = childIndexes.get(parent) ?? 0
+            childIndexes.set(parent, index + 1)
+            const parentPath = framePathByFrame.get(parent) ?? []
+            framePathByFrame.set(frame, [...parentPath, index])
+        }
+
+        for (const frame of frames) {
+            if (frame === mainFrame) continue
+            const parent = frame.parentFrame()
+            const path = framePathByFrame.get(frame)
+            if (!parent || !path) {
+                frameSelectorByFrame.set(frame, null)
+                continue
+            }
+            try {
+                const selector = await parent.evaluate((childIndex) => {
+                    const cssEscape = (value: string) => {
+                        const css = (window as any).CSS
+                        if (css?.escape) return css.escape(value)
+                        return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+                    }
+                    const usefulClasses = (el: Element) => Array.from(el.classList || [])
+                        .filter(cls => cls && !/\d{4,}|[A-Fa-f0-9]{8,}|^ng-|^css-|^sc-/.test(cls))
+                        .slice(0, 2)
+                    const iframe = Array.from(document.querySelectorAll('iframe'))[childIndex]
+                    if (!iframe) return null
+                    if (iframe.id) return `iframe#${cssEscape(iframe.id)}`
+                    const name = iframe.getAttribute('name')
+                    if (name) return `iframe[name="${cssEscape(name)}"]`
+                    const src = iframe.getAttribute('src')
+                    if (src) return `iframe[src="${cssEscape(src)}"]`
+                    const classes = usefulClasses(iframe)
+                    if (classes.length > 0) return `iframe.${classes.map(cssEscape).join('.')}`
+                    return `iframe:nth-of-type(${childIndex + 1})`
+                }, path[path.length - 1])
+                frameSelectorByFrame.set(frame, selector)
+            } catch (error) {
+                frameSelectorByFrame.set(frame, null)
+            }
+        }
+
+        const frameEntries: any[] = []
+        const aggregate = {
+            forms: [] as any[],
+            inputs: [] as any[],
+            textareas: [] as any[],
+            selects: [] as any[],
+            buttons: [] as any[],
+            links: [] as any[],
+            labels: [] as any[],
+            duplicateIds: [] as any[],
+        }
+        const truncatedCategories = new Set<string>()
+
+        const framesToInspect = frames.filter(frame => {
+            const framePath = framePathByFrame.get(frame)
+            if (!framePath) return false
+            if (frame !== mainFrame && !includeIframes) return false
+            return framePath.length <= maxIframeDepth
+        })
+
+        for (let frameIndex = 0; frameIndex < framesToInspect.length; frameIndex++) {
+            const frame = framesToInspect[frameIndex]
+            const framePath = framePathByFrame.get(frame) ?? []
+            frameEntries.push({
+                frameIndex,
+                framePath,
+                url: frame.url(),
+                name: frame.name(),
+                selectorHint: frameSelectorByFrame.get(frame) ?? null,
+                parentFramePath: frame.parentFrame() ? (framePathByFrame.get(frame.parentFrame()) ?? null) : null,
+            })
+
+            let inspected: any
+            try {
+                inspected = await frame.evaluate(
+                    ({ onlyVisible, maxTextLength }) => {
+                        const normalizeText = (value: unknown): string => String(value ?? '')
+                            .replace(/\s+/g, ' ')
+                            .trim()
+                            .slice(0, maxTextLength)
+                        const cssEscape = (value: string) => {
+                            const css = (window as any).CSS
+                            if (css?.escape) return css.escape(value)
+                            return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+                        }
+                        const attrSelector = (name: string, value: string) => `[${name}="${cssEscape(value)}"]`
+                        const isVisible = (el: Element): boolean => {
+                            const element = el as HTMLElement
+                            const rect = element.getBoundingClientRect()
+                            if (rect.width <= 0 || rect.height <= 0) return false
+                            let current: Element | null = el
+                            while (current) {
+                                const style = window.getComputedStyle(current)
+                                if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) {
+                                    return false
+                                }
+                                current = current.parentElement
+                            }
+                            return true
+                        }
+                        const boundingBox = (el: Element) => {
+                            const rect = (el as HTMLElement).getBoundingClientRect()
+                            return {
+                                x: rect.x,
+                                y: rect.y,
+                                width: rect.width,
+                                height: rect.height,
+                            }
+                        }
+                        const usefulClasses = (el: Element) => Array.from((el as HTMLElement).classList || [])
+                            .filter(cls => cls && !/\d{4,}|[A-Fa-f0-9]{8,}|^ng-|^css-|^sc-/.test(cls))
+                            .slice(0, 2)
+                        const nthOfType = (el: Element): string => {
+                            const parent = el.parentElement
+                            if (!parent) return `${el.tagName.toLowerCase()}:nth-of-type(1)`
+                            const sameTag = Array.from(parent.children).filter(child => child.tagName === el.tagName)
+                            return `${el.tagName.toLowerCase()}:nth-of-type(${sameTag.indexOf(el) + 1})`
+                        }
+                        const selectorFor = (el: Element, duplicateIds: Set<string>): string => {
+                            const tag = el.tagName.toLowerCase()
+                            const form = (el as HTMLInputElement).form
+                            const formPrefix = form ? selectorForForm(form, duplicateIds) : ''
+                            const id = (el as HTMLElement).id
+                            const name = el.getAttribute('name')
+                            const type = el.getAttribute('type')
+                            const ariaLabel = el.getAttribute('aria-label')
+                            const placeholder = el.getAttribute('placeholder')
+                            const classes = usefulClasses(el)
+                            let base = ''
+                            if (id && !duplicateIds.has(id)) base = `${tag}#${cssEscape(id)}`
+                            else if (name && type) base = `${tag}${attrSelector('type', type)}${attrSelector('name', name)}`
+                            else if (name) base = `${tag}${attrSelector('name', name)}`
+                            else if (ariaLabel) base = `${tag}${attrSelector('aria-label', ariaLabel)}`
+                            else if (placeholder) base = `${tag}${attrSelector('placeholder', placeholder)}`
+                            else if (classes.length > 0) base = `${tag}.${classes.map(cssEscape).join('.')}${type ? attrSelector('type', type) : ''}`
+                            else base = nthOfType(el)
+                            return formPrefix && !base.startsWith('form') ? `${formPrefix} ${base}` : base
+                        }
+                        const selectorForForm = (form: HTMLFormElement, duplicateIds: Set<string>): string => {
+                            const id = form.id
+                            const name = form.getAttribute('name')
+                            const classes = usefulClasses(form)
+                            if (id && !duplicateIds.has(id)) return `form#${cssEscape(id)}`
+                            if (name) return `form${attrSelector('name', name)}`
+                            if (classes.length > 0) return `form.${classes.map(cssEscape).join('.')}`
+                            return `form:nth-of-type(${Array.from(document.querySelectorAll('form')).indexOf(form) + 1})`
+                        }
+                        const labelFor = (el: Element): string => {
+                            const id = (el as HTMLElement).id
+                            if (id) {
+                                const explicit = document.querySelector(`label[for="${cssEscape(id)}"]`)
+                                if (explicit) return normalizeText(explicit.textContent)
+                            }
+                            const wrapping = el.closest('label')
+                            if (wrapping) return normalizeText(wrapping.textContent)
+                            return ''
+                        }
+                        const nearbyText = (el: Element): string => normalizeText(
+                            labelFor(el) ||
+                            el.getAttribute('aria-label') ||
+                            el.getAttribute('placeholder') ||
+                            el.textContent ||
+                            el.parentElement?.textContent ||
+                            ''
+                        )
+                        const ids = Array.from(document.querySelectorAll('[id]')).map(el => (el as HTMLElement).id).filter(Boolean)
+                        const duplicateIdValues = new Set(ids.filter((id, index) => ids.indexOf(id) !== index))
+                        const idCounts = ids.reduce((acc, id) => {
+                            acc[id] = (acc[id] || 0) + 1
+                            return acc
+                        }, {} as Record<string, number>)
+                        const duplicateIds = Object.entries(idCounts)
+                            .filter(([, count]) => count > 1)
+                            .map(([id, count]) => ({
+                                id,
+                                count,
+                                visibleCount: Array.from(document.querySelectorAll(`#${cssEscape(id)}`)).filter(isVisible).length,
+                            }))
+
+                        const formElements = Array.from(document.querySelectorAll('form')) as HTMLFormElement[]
+                        const inputsRaw = Array.from(document.querySelectorAll('input')) as HTMLInputElement[]
+                        const textareasRaw = Array.from(document.querySelectorAll('textarea')) as HTMLTextAreaElement[]
+                        const selectsRaw = Array.from(document.querySelectorAll('select')) as HTMLSelectElement[]
+                        const buttonsRaw = Array.from(document.querySelectorAll('button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"]')) as HTMLElement[]
+                        const linksRaw = Array.from(document.querySelectorAll('a[href], [role="link"]')) as HTMLElement[]
+                        const labelsRaw = Array.from(document.querySelectorAll('label')) as HTMLLabelElement[]
+                        const shouldInclude = (el: Element) => !onlyVisible || (isVisible(el) && !(el as HTMLInputElement).disabled)
+                        const formIndexFor = (el: Element) => {
+                            const form = (el as HTMLInputElement).form
+                            return form ? formElements.indexOf(form) : -1
+                        }
+                        const fieldInfo = (el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, index: number, tag: string) => {
+                            const visible = isVisible(el)
+                            const type = tag === 'input' ? (el as HTMLInputElement).type || 'text' : tag
+                            const isPassword = type === 'password'
+                            const value = isPassword ? '' : normalizeText((el as HTMLInputElement).value)
+                            return {
+                                index,
+                                selectorHint: selectorFor(el, duplicateIdValues),
+                                tag,
+                                type,
+                                id: el.id || '',
+                                name: el.getAttribute('name') || '',
+                                placeholder: normalizeText(el.getAttribute('placeholder')),
+                                value,
+                                hasValue: Boolean((el as HTMLInputElement).value),
+                                valueMasked: isPassword,
+                                label: labelFor(el),
+                                ariaLabel: normalizeText(el.getAttribute('aria-label')),
+                                autocomplete: el.getAttribute('autocomplete') || '',
+                                visible,
+                                disabled: Boolean((el as HTMLInputElement).disabled),
+                                readOnly: Boolean((el as HTMLInputElement | HTMLTextAreaElement).readOnly),
+                                required: Boolean((el as HTMLInputElement).required),
+                                interactive: visible && !Boolean((el as HTMLInputElement).disabled) && !Boolean((el as HTMLInputElement | HTMLTextAreaElement).readOnly),
+                                formIndex: formIndexFor(el),
+                                nearbyText: nearbyText(el),
+                                duplicateId: Boolean(el.id && duplicateIdValues.has(el.id)),
+                                boundingBox: boundingBox(el),
+                            }
+                        }
+                        const inputs = inputsRaw.filter(shouldInclude).map((el, index) => fieldInfo(el, index, 'input'))
+                        const textareas = textareasRaw.filter(shouldInclude).map((el, index) => fieldInfo(el, index, 'textarea'))
+                        const selects = selectsRaw.filter(shouldInclude).map((el, index) => fieldInfo(el, index, 'select'))
+                        const buttons = buttonsRaw.filter(shouldInclude).map((el, index) => {
+                            const visible = isVisible(el)
+                            const input = el as HTMLInputElement
+                            return {
+                                index,
+                                selectorHint: selectorFor(el, duplicateIdValues),
+                                tag: el.tagName.toLowerCase(),
+                                type: input.type || el.getAttribute('role') || '',
+                                id: el.id || '',
+                                name: el.getAttribute('name') || '',
+                                text: normalizeText(el.textContent || input.value),
+                                ariaLabel: normalizeText(el.getAttribute('aria-label')),
+                                visible,
+                                disabled: Boolean(input.disabled || el.getAttribute('aria-disabled') === 'true'),
+                                interactive: visible && !Boolean(input.disabled || el.getAttribute('aria-disabled') === 'true'),
+                                formIndex: formIndexFor(el),
+                                nearbyText: nearbyText(el),
+                                boundingBox: boundingBox(el),
+                            }
+                        })
+                        const links = linksRaw.filter(shouldInclude).map((el, index) => ({
+                            index,
+                            selectorHint: selectorFor(el, duplicateIdValues),
+                            href: (el as HTMLAnchorElement).href || '',
+                            text: normalizeText(el.textContent),
+                            ariaLabel: normalizeText(el.getAttribute('aria-label')),
+                            visible: isVisible(el),
+                            interactive: isVisible(el),
+                            nearbyText: nearbyText(el),
+                            boundingBox: boundingBox(el),
+                        }))
+                        const labels = labelsRaw.filter(el => !onlyVisible || isVisible(el)).map((el, index) => ({
+                            index,
+                            selectorHint: selectorFor(el, duplicateIdValues),
+                            text: normalizeText(el.textContent),
+                            for: el.getAttribute('for') || '',
+                            visible: isVisible(el),
+                            boundingBox: boundingBox(el),
+                        }))
+                        const forms = formElements.filter(el => !onlyVisible || isVisible(el)).map((form, index) => ({
+                            index,
+                            selectorHint: selectorForForm(form, duplicateIdValues),
+                            action: form.getAttribute('action') || '',
+                            method: (form.getAttribute('method') || 'get').toLowerCase(),
+                            visible: isVisible(form),
+                            text: normalizeText(form.innerText || form.textContent),
+                            inputs: inputs.map((input, inputIndex) => input.formIndex === index ? inputIndex : -1).filter(i => i >= 0),
+                            textareas: textareas.map((textarea, textareaIndex) => textarea.formIndex === index ? textareaIndex : -1).filter(i => i >= 0),
+                            selects: selects.map((select, selectIndex) => select.formIndex === index ? selectIndex : -1).filter(i => i >= 0),
+                            buttons: buttons.map((button, buttonIndex) => button.formIndex === index ? buttonIndex : -1).filter(i => i >= 0),
+                        }))
+                        return { forms, inputs, textareas, selects, buttons, links, labels, duplicateIds }
+                    },
+                    { onlyVisible, maxTextLength },
+                )
+            } catch (error) {
+                inspected = { forms: [], inputs: [], textareas: [], selects: [], buttons: [], links: [], labels: [], duplicateIds: [] }
+            }
+
+            for (const category of Object.keys(aggregate)) {
+                for (const item of inspected[category] || []) {
+                    const target = aggregate[category]
+                    if (target.length >= maxItems) {
+                        truncatedCategories.add(category)
+                        continue
+                    }
+                    target.push({
+                        ...item,
+                        frameIndex,
+                        framePath,
+                        frameUrl: frame.url(),
+                        frameName: frame.name(),
+                        frameSelectorHint: frameSelectorByFrame.get(frame) ?? null,
+                    })
+                }
+            }
+        }
+
+        return {
+            ok: true,
+            url: page.url(),
+            title: await page.title(),
+            counts: {
+                forms: aggregate.forms.length,
+                inputs: aggregate.inputs.length,
+                textareas: aggregate.textareas.length,
+                selects: aggregate.selects.length,
+                buttons: aggregate.buttons.length,
+                links: aggregate.links.length,
+                labels: aggregate.labels.length,
+                duplicateIds: aggregate.duplicateIds.length,
+                frames: frameEntries.length,
+            },
+            frames: frameEntries,
+            forms: aggregate.forms,
+            inputs: aggregate.inputs,
+            textareas: aggregate.textareas,
+            selects: aggregate.selects,
+            buttons: aggregate.buttons,
+            links: aggregate.links,
+            labels: aggregate.labels,
+            duplicateIds: aggregate.duplicateIds,
+            truncated: truncatedCategories.size > 0,
+            truncatedCategories: Array.from(truncatedCategories),
         }
     }
 

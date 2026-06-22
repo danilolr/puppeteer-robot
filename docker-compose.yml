@@ -7,13 +7,9 @@ services:
       dockerfile: docker/Dockerfile
     container_name: puppeteer-api
     ports:
-      - "3000:3000"
+      - "3080:3000"
     environment:
       - TEMP_FILE_PATH=/opt/putteteer-api
-      # - GROQ_API_KEY=
-      # - GEMINI_API_KEY=
-      # - OLLAMA_API_URL=
-      # - API_TOKEN=
     restart: always
 
   puppeteer-ng:
@@ -22,7 +18,7 @@ services:
       dockerfile: docker/Dockerfile
     container_name: puppeteer-ng
     ports:
-      - "8080:80"
+      - "4221:80"
     volumes:
       - ./puppeteer-robot-ng/docker/config.json:/usr/share/nginx/html/assets/config.json
     depends_on:

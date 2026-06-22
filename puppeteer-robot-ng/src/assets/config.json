@@ -1,8 +1,7 @@
 {
     "production": true,
     "envName": "prd",
-    "apiUrl": "http://localhost:3003",
-    "wsPath": "http://localhost:3003",
-    "version": "1.6.0",
+    "apiUrl": "http://localhost:3080",
+    "wsPath": "http://localhost:3080",
     "apiToken": "123456"
 }

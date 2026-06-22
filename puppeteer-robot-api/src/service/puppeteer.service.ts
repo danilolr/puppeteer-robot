@@ -158,6 +158,16 @@ export class PuppeteerService {
         return this.runInstanceOperation(robotId, instance => instance.pageInfo())
     }
 
+    async inspectInteractiveElements(robotId: string, options?: {
+        onlyVisible?: boolean
+        includeIframes?: boolean
+        maxIframeDepth?: number
+        maxItems?: number
+        maxTextLength?: number
+    }): Promise<RobotCommandResp> {
+        return this.runInstanceOperation(robotId, instance => instance.inspectInteractiveElements(options))
+    }
+
     async delete(robotId: string): Promise<boolean> {
         const instance = this.instances.get(robotId)
         const pool = instance?.pool

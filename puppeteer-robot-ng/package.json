@@ -1,11 +1,11 @@
 {
   "name": "puppeteer-robot-ng",
-  "version": "2.0.0",
+  "version": "2.1.1",
   "author": "Danilo Luiz Rheinheimer",
   "license": "MIT",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --port 4221 --open",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",

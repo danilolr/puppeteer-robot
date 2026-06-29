@@ -32,12 +32,13 @@ export class RobotService {
   }
 
   async run(dto: RobotCommandReq): Promise<RobotCommandResp> {
-    return this.runLoggedOperation('run_command', dto, () => this.puppeteerService.runCommand(dto))
+    return this.runLoggedOperation('run_command', dto.robotId, dto, () => this.puppeteerService.runCommand(dto))
   }
 
   async navigate(robotId: string, url: string, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
     return this.runLoggedOperation(
       'navigate',
+      robotId,
       { robotId, url, waitUntil, timeoutMs },
       () => this.puppeteerService.navigate(robotId, url, waitUntil, timeoutMs),
     )
@@ -46,6 +47,7 @@ export class RobotService {
   async runJavascriptOnPage(robotId: string, script: string, args?: unknown, timeoutMs?: number): Promise<RobotCommandResp> {
     return this.runLoggedOperation(
       'run_javascript_on_page',
+      robotId,
       { robotId, script, args, timeoutMs },
       () => this.puppeteerService.runJavascriptOnPage(robotId, script, args, timeoutMs),
     )
@@ -54,6 +56,7 @@ export class RobotService {
   async typeText(robotId: string, selector: string, text: string, clearBefore?: boolean, timeoutMs?: number): Promise<RobotCommandResp> {
     return this.runLoggedOperation(
       'type',
+      robotId,
       { robotId, selector, text, clearBefore, timeoutMs },
       () => this.puppeteerService.typeText(robotId, selector, text, clearBefore, timeoutMs),
     )
@@ -62,6 +65,7 @@ export class RobotService {
   async setValue(robotId: string, selector: string, value: string, dispatchEvents?: string[], timeoutMs?: number): Promise<RobotCommandResp> {
     return this.runLoggedOperation(
       'set_value',
+      robotId,
       { robotId, selector, value, dispatchEvents, timeoutMs },
       () => this.puppeteerService.setValue(robotId, selector, value, dispatchEvents, timeoutMs),
     )
@@ -70,6 +74,7 @@ export class RobotService {
   async click(robotId: string, selector: string, waitForNavigation?: boolean, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
     return this.runLoggedOperation(
       'click',
+      robotId,
       { robotId, selector, waitForNavigation, waitUntil, timeoutMs },
       () => this.puppeteerService.click(robotId, selector, waitForNavigation, waitUntil, timeoutMs),
     )
@@ -138,6 +143,7 @@ export class RobotService {
 
   private async runLoggedOperation(
     operationName: string,
+    robotId: string,
     request: unknown,
     operation: () => Promise<RobotCommandResp>,
   ): Promise<RobotCommandResp> {
@@ -147,6 +153,8 @@ export class RobotService {
       const response = await operation()
       await this.runLogService.saveRunLog({
         operationName,
+        robotId,
+        sessionId: this.puppeteerService.getSessionId(robotId),
         requestedAt,
         durationMs: Date.now() - requestedAt.getTime(),
         request,
@@ -156,6 +164,8 @@ export class RobotService {
     } catch (error) {
       await this.runLogService.saveRunLog({
         operationName,
+        robotId,
+        sessionId: this.puppeteerService.getSessionId(robotId),
         requestedAt,
         durationMs: Date.now() - requestedAt.getTime(),
         request,

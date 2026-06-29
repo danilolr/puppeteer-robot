@@ -274,6 +274,11 @@ export class PuppeteerService {
         return infos
     }
 
+    getSessionId(robotId: string): string | undefined {
+        const instance = this.instances.get(robotId)
+        return instance?.createdAt.toISOString()
+    }
+
     async upload(file: FileSystemStoredFile): Promise<UploadResult> {
         const originalName = Buffer.from(file.originalName, 'latin1').toString('utf8')
         const fileName = this.sanitizeFileName(path.basename(originalName))

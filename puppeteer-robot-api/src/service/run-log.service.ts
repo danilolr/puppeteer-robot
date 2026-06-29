@@ -5,6 +5,8 @@ import { randomUUID } from 'crypto'
 
 interface RunLogParams {
   operationName: string
+  robotId: string
+  sessionId?: string
   requestedAt: Date
   durationMs: number
   request: unknown
@@ -23,14 +25,20 @@ export class RunLogService {
     }
 
     try {
-      await mkdir(logsPath, { recursive: true })
+      const robotId = this.formatPathSegment(params.robotId || 'unknown-robot')
+      const sessionId = this.formatPathSegment(params.sessionId || 'unknown-session')
+      const logDir = join(logsPath, robotId, sessionId)
+      await mkdir(logDir, { recursive: true })
+
       const timestamp = this.formatTimestamp(params.requestedAt)
       const operationName = this.formatOperationName(params.operationName)
       const fileName = `${operationName}-${timestamp}-${randomUUID()}.json`
-      const filePath = join(logsPath, fileName)
+      const filePath = join(logDir, fileName)
 
       const payload = {
         operationName: params.operationName,
+        robotId: params.robotId,
+        sessionId: params.sessionId,
         requestedAt: params.requestedAt.toISOString(),
         durationMs: params.durationMs,
         request: params.request,
@@ -46,6 +54,10 @@ export class RunLogService {
 
   private formatOperationName(operationName: string): string {
     return operationName.replace(/[^a-zA-Z0-9_-]/g, '_')
+  }
+
+  private formatPathSegment(value: string): string {
+    return value.replace(/[^a-zA-Z0-9_.-]/g, '_')
   }
 
   private formatTimestamp(date: Date): string {

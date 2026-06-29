@@ -615,6 +615,6 @@ Server broadcasts:
 |---|---|
 | `PORT` | HTTP port. Defaults to `3000`. |
 | `TEMP_FILE_PATH` | Base directory for temporary upload files. |
-| `LOGS_PATH` | Optional directory for one JSON log file per logged Puppeteer command call. |
+| `LOGS_PATH` | Optional base directory for logged Puppeteer command calls, grouped by `<robotId>/<sessionId>`. |
 | `DEV_MODE` | If `true`, disables auth and launches local Chrome in non-headless mode. |
 | `API_TOKEN` | Bearer token required when not in development mode. |

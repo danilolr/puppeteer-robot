@@ -549,6 +549,14 @@ run_javascript_on_page
 take_screenshot
 ```
 
+When `LOGS_PATH` is configured, the following command tools write JSON logs: `run_command`, `run_javascript_on_page`, `navigate`, `type`, `set_value`, and `click`.
+
+Logs are stored under:
+
+```text
+LOGS_PATH/<robotId>/<sessionId>/<tool-name>-<timestamp>-<uuid>.json
+```
+
 ## Swagger
 
 Swagger UI is available at:

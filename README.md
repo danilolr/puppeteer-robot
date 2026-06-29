@@ -70,13 +70,21 @@ This monorepo contains two projects:
 
 ### Environment Variables (API)
 
-The following environment variables are configured in `docker-compose.yml`:
+The API accepts the following environment variables:
 
 | Variable | Description |
 |---|---|
 | `TEMP_FILE_PATH` | Temporary file storage path inside the container |
 | `LOGS_PATH` | Optional base directory for logged Puppeteer command calls, grouped by `<robotId>/<sessionId>` |
 | `API_TOKEN` | Authentication token for the API |
+
+When `LOGS_PATH` is set, command logs are written as:
+
+```text
+LOGS_PATH/<robotId>/<sessionId>/<operation>-<timestamp>-<uuid>.json
+```
+
+Logged operations include `run_command`, `run_javascript_on_page`, `navigate`, `type`, `set_value`, and `click`.
 
 
 ### Angular Configuration

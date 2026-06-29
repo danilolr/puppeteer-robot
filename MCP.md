@@ -30,6 +30,29 @@ Authorization: Bearer <API_TOKEN>
 
 If `DEV_MODE=true` or `API_TOKEN` is not configured, requests are allowed without authentication.
 
+## Command Logs
+
+When `LOGS_PATH` is configured, selected MCP command tools write one JSON log file per call.
+
+Logged MCP tools:
+
+- `run_command`
+- `run_javascript_on_page`
+- `navigate`
+- `type`
+- `set_value`
+- `click`
+
+Files are grouped by robot and browser session:
+
+```text
+LOGS_PATH/<robotId>/<sessionId>/<tool-name>-<timestamp>-<uuid>.json
+```
+
+The session ID is derived from the Puppeteer instance creation timestamp. Path separators and other unsafe characters are replaced with `_`.
+
+Each log file includes the operation name, robot ID, session ID, request payload, response payload, duration, and error details when the operation throws.
+
 ## Exposed Tools
 
 ### Robot Lifecycle

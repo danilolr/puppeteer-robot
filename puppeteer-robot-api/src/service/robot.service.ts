@@ -3,6 +3,7 @@ import { PuppeteerService } from "./puppeteer.service"
 import { DownloadResult, RobotCommandReq, RobotCommandResp, RobotCreateResp, RobotErrorReq, RobotInfo, UploadResult } from "src/model/robot.model"
 import { FileSystemStoredFile } from "nestjs-form-data"
 import { WsGateway } from "./ws.gateway"
+import { RunLogService } from "./run-log.service"
 
 const packageJson = require('../../package.json')
 export const VERSION = packageJson.version
@@ -10,8 +11,10 @@ export const VERSION = packageJson.version
 @Injectable()
 export class RobotService {
 
-  constructor(private readonly puppeteerService: PuppeteerService, 
-    private readonly wsGateway: WsGateway
+  constructor(
+    private readonly puppeteerService: PuppeteerService,
+    private readonly wsGateway: WsGateway,
+    private readonly runLogService: RunLogService,
   ) { }
 
   async version(): Promise<string> {
@@ -29,7 +32,26 @@ export class RobotService {
   }
 
   async run(dto: RobotCommandReq): Promise<RobotCommandResp> {
-    return this.puppeteerService.runCommand(dto)
+    const requestedAt = new Date()
+
+    try {
+      const response = await this.puppeteerService.runCommand(dto)
+      await this.runLogService.saveRunLog({
+        requestedAt,
+        durationMs: Date.now() - requestedAt.getTime(),
+        request: dto,
+        response,
+      })
+      return response
+    } catch (error) {
+      await this.runLogService.saveRunLog({
+        requestedAt,
+        durationMs: Date.now() - requestedAt.getTime(),
+        request: dto,
+        error,
+      })
+      throw error
+    }
   }
 
   async navigate(robotId: string, url: string, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {

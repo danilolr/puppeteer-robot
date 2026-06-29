@@ -75,7 +75,7 @@ The following environment variables are configured in `docker-compose.yml`:
 | Variable | Description |
 |---|---|
 | `TEMP_FILE_PATH` | Temporary file storage path inside the container |
-| `LOGS_PATH` | Optional directory for one JSON log file per `/run` request/response |
+| `LOGS_PATH` | Optional directory for one JSON log file per logged Puppeteer command call |
 | `API_TOKEN` | Authentication token for the API |
 
 

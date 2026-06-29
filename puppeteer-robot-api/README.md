@@ -34,7 +34,7 @@ A robust NestJS-based REST API service designed to manage and control Puppeteer 
 3. Configure environment variables:
    - Create a `.env` file in the root directory (if not already present).
    - Ensure the `TEMP_FILE_PATH` variable is set if you are not using the default setup.
-   - Optionally set `LOGS_PATH` to write one JSON log file per `/run` request/response.
+   - Optionally set `LOGS_PATH` to write one JSON log file per logged Puppeteer command call.
 
 ## Running the Application
 

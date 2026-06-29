@@ -4,6 +4,7 @@ import { join } from 'path'
 import { randomUUID } from 'crypto'
 
 interface RunLogParams {
+  operationName: string
   requestedAt: Date
   durationMs: number
   request: unknown
@@ -24,12 +25,12 @@ export class RunLogService {
     try {
       await mkdir(logsPath, { recursive: true })
       const timestamp = this.formatTimestamp(params.requestedAt)
-      const fileName = `run-${timestamp}-${randomUUID()}.json`
+      const operationName = this.formatOperationName(params.operationName)
+      const fileName = `${operationName}-${timestamp}-${randomUUID()}.json`
       const filePath = join(logsPath, fileName)
 
       const payload = {
-        endpoint: '/puppeteer-robot/run',
-        method: 'PUT',
+        operationName: params.operationName,
         requestedAt: params.requestedAt.toISOString(),
         durationMs: params.durationMs,
         request: params.request,
@@ -39,8 +40,12 @@ export class RunLogService {
 
       await writeFile(filePath, this.stringifyJson(payload), { encoding: 'utf8', flag: 'wx' })
     } catch (error) {
-      this.logger.error(`Failed to write /run log: ${this.formatErrorMessage(error)}`)
+      this.logger.error(`Failed to write ${params.operationName} log: ${this.formatErrorMessage(error)}`)
     }
+  }
+
+  private formatOperationName(operationName: string): string {
+    return operationName.replace(/[^a-zA-Z0-9_-]/g, '_')
   }
 
   private formatTimestamp(date: Date): string {

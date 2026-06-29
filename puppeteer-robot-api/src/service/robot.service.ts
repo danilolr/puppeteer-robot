@@ -32,46 +32,47 @@ export class RobotService {
   }
 
   async run(dto: RobotCommandReq): Promise<RobotCommandResp> {
-    const requestedAt = new Date()
-
-    try {
-      const response = await this.puppeteerService.runCommand(dto)
-      await this.runLogService.saveRunLog({
-        requestedAt,
-        durationMs: Date.now() - requestedAt.getTime(),
-        request: dto,
-        response,
-      })
-      return response
-    } catch (error) {
-      await this.runLogService.saveRunLog({
-        requestedAt,
-        durationMs: Date.now() - requestedAt.getTime(),
-        request: dto,
-        error,
-      })
-      throw error
-    }
+    return this.runLoggedOperation('run_command', dto, () => this.puppeteerService.runCommand(dto))
   }
 
   async navigate(robotId: string, url: string, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
-    return this.puppeteerService.navigate(robotId, url, waitUntil, timeoutMs)
+    return this.runLoggedOperation(
+      'navigate',
+      { robotId, url, waitUntil, timeoutMs },
+      () => this.puppeteerService.navigate(robotId, url, waitUntil, timeoutMs),
+    )
   }
 
   async runJavascriptOnPage(robotId: string, script: string, args?: unknown, timeoutMs?: number): Promise<RobotCommandResp> {
-    return this.puppeteerService.runJavascriptOnPage(robotId, script, args, timeoutMs)
+    return this.runLoggedOperation(
+      'run_javascript_on_page',
+      { robotId, script, args, timeoutMs },
+      () => this.puppeteerService.runJavascriptOnPage(robotId, script, args, timeoutMs),
+    )
   }
 
   async typeText(robotId: string, selector: string, text: string, clearBefore?: boolean, timeoutMs?: number): Promise<RobotCommandResp> {
-    return this.puppeteerService.typeText(robotId, selector, text, clearBefore, timeoutMs)
+    return this.runLoggedOperation(
+      'type',
+      { robotId, selector, text, clearBefore, timeoutMs },
+      () => this.puppeteerService.typeText(robotId, selector, text, clearBefore, timeoutMs),
+    )
   }
 
   async setValue(robotId: string, selector: string, value: string, dispatchEvents?: string[], timeoutMs?: number): Promise<RobotCommandResp> {
-    return this.puppeteerService.setValue(robotId, selector, value, dispatchEvents, timeoutMs)
+    return this.runLoggedOperation(
+      'set_value',
+      { robotId, selector, value, dispatchEvents, timeoutMs },
+      () => this.puppeteerService.setValue(robotId, selector, value, dispatchEvents, timeoutMs),
+    )
   }
 
   async click(robotId: string, selector: string, waitForNavigation?: boolean, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
-    return this.puppeteerService.click(robotId, selector, waitForNavigation, waitUntil, timeoutMs)
+    return this.runLoggedOperation(
+      'click',
+      { robotId, selector, waitForNavigation, waitUntil, timeoutMs },
+      () => this.puppeteerService.click(robotId, selector, waitForNavigation, waitUntil, timeoutMs),
+    )
   }
 
   async waitForNavigation(robotId: string, waitUntil?: string, timeoutMs?: number): Promise<RobotCommandResp> {
@@ -133,6 +134,35 @@ export class RobotService {
 
   async deleteFile(id: string): Promise<boolean> {
     return true
+  }
+
+  private async runLoggedOperation(
+    operationName: string,
+    request: unknown,
+    operation: () => Promise<RobotCommandResp>,
+  ): Promise<RobotCommandResp> {
+    const requestedAt = new Date()
+
+    try {
+      const response = await operation()
+      await this.runLogService.saveRunLog({
+        operationName,
+        requestedAt,
+        durationMs: Date.now() - requestedAt.getTime(),
+        request,
+        response,
+      })
+      return response
+    } catch (error) {
+      await this.runLogService.saveRunLog({
+        operationName,
+        requestedAt,
+        durationMs: Date.now() - requestedAt.getTime(),
+        request,
+        error,
+      })
+      throw error
+    }
   }
 
 }

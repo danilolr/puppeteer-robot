@@ -36,6 +36,12 @@ A robust NestJS-based REST API service designed to manage and control Puppeteer 
    - Ensure the `TEMP_FILE_PATH` variable is set if you are not using the default setup.
    - Optionally set `LOGS_PATH` to write JSON logs for Puppeteer command calls grouped by `<robotId>/<sessionId>`.
 
+When `LOGS_PATH` is set, logs for `run_command`, `run_javascript_on_page`, `navigate`, `type`, `set_value`, and `click` are written as:
+
+```text
+LOGS_PATH/<robotId>/<sessionId>/<operation>-<timestamp>-<uuid>.json
+```
+
 ## Running the Application
 
 ### Local Development

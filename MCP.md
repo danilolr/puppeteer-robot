@@ -90,9 +90,11 @@ Lists active Puppeteer robot instances and connected Chrome extension sessions.
 
 Input: none.
 
+Chrome extension sessions can appear in this list as `IDLE` immediately after the extension connects, before any `create_robot` call reserves them. Use the returned `backend` field to choose backend-specific behavior.
+
 #### `delete_robot`
 
-Deletes or releases a Puppeteer robot instance.
+Deletes or releases a robot instance.
 
 Input:
 
@@ -101,6 +103,8 @@ Input:
   "robotId": "robot-id"
 }
 ```
+
+For `chrome-extension`, this releases the extension session back to `IDLE`; it does not close Chrome or unload the extension.
 
 ### Page Navigation and Interaction
 
@@ -261,7 +265,7 @@ This tool is the preferred way for MCP agents to discover fields, buttons, links
 
 #### `take_screenshot`
 
-Takes a PNG screenshot from the active robot page.
+Takes a PNG screenshot from the active Puppeteer robot page.
 
 Input:
 
@@ -280,6 +284,8 @@ On success, the tool returns MCP image content:
   "mimeType": "image/png"
 }
 ```
+
+This tool is not supported for `chrome-extension` robots yet.
 
 ### Files and Downloads
 
@@ -335,7 +341,7 @@ The result includes:
 
 #### `run_command`
 
-Runs arbitrary JavaScript against an active Puppeteer robot page.
+Runs arbitrary JavaScript against an active robot.
 
 Input:
 
@@ -346,7 +352,11 @@ Input:
 }
 ```
 
-This tool can execute arbitrary JavaScript in the Puppeteer context. Prefer the specific tools above for common actions, and expose this tool only to trusted MCP clients.
+For `puppeteer` robots, the command runs in the backend Puppeteer context and can use `page`, `browser`, `filePath`, and `downloadUrl`.
+
+For `chrome-extension` robots, the command runs in the selected Chrome tab page context and can use page globals such as `window` and `document`. It does not expose Puppeteer objects such as `page` or `browser`.
+
+This tool can execute arbitrary JavaScript. Prefer the specific tools above for common actions, and expose this tool only to trusted MCP clients.
 
 Important: do not wrap the command in an async IIFE like `(async () => { ... })()`. The API already runs the command inside an async function, so commands should use `await` directly:
 

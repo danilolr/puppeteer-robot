@@ -1,13 +1,14 @@
 # Puppeteer Robot API
 
-A robust NestJS-based REST API service designed to manage and control Puppeteer browser instances remotely. This service allows you to spawn ephemeral browser sessions, execute automation commands, handle file uploads, and retrieve screenshots via simple HTTP requests.
+A NestJS-based REST and MCP API service designed to manage and control browser automation sessions remotely. The API supports Puppeteer-managed Chromium instances and connected Chrome extension sessions.
 
 ## Features
 
 - **Browser Management**: Create, list, and destroy Puppeteer browser instances on demand.
+- **Chrome Extension Backend**: Register connected Chrome extension sessions and reserve them as automation robots.
 - **Remote Execution**: Send commands to control browser behavior via a RESTful interface.
 - **File Handling**: Upload and manage files required for automation tasks.
-- **Screenshots**: Capture instant screenshots of active browser sessions.
+- **Screenshots**: Capture screenshots of active Puppeteer browser sessions.
 - **Real-time Updates**: WebSocket support (Socket.IO) for real-time status updates and communication.
 - **Swagger Documentation**: Integrated Swagger UI for easy API exploration and testing.
 - **Docker Ready**: Includes Docker support for easy containerized deployment.
@@ -92,17 +93,18 @@ http://localhost:3000/puppeteer-robot/api/v1/swagger
 ### Key Endpoints
 
 - **GET** `/puppeteer-robot/version`: Check the API version.
-- **POST** `/puppeteer-robot/create/:pool`: Create a new browser instance.
+- **POST** `/puppeteer-robot/create/:pool`: Create a Puppeteer browser instance or reserve a Chrome extension session with `backend=chrome-extension`.
+- **POST** `/puppeteer-robot/create`: Structured create/reserve endpoint accepting `backend`, `pool`, and `instanceId`.
 - **PUT** `/puppeteer-robot/run`: Execute a command on a specific instance.
-- **GET** `/puppeteer-robot/screenshot/:id`: Take a screenshot of an active session.
-- **GET** `/puppeteer-robot/list`: List all active robot instances.
-- **DELETE** `/puppeteer-robot/delete/:id`: Terminate a specific browser instance.
+- **GET** `/puppeteer-robot/screenshot/:id`: Take a screenshot of an active Puppeteer session.
+- **GET** `/puppeteer-robot/list`: List active Puppeteer instances and connected Chrome extension sessions. Each item includes `backend`.
+- **DELETE** `/puppeteer-robot/delete/:id`: Terminate a Puppeteer browser instance or release a Chrome extension session.
 - **POST** `/puppeteer-robot/file/upload`: Upload files for automation use.
 
 ## WebSocket Events
 
 The application exposes a WebSocket gateway for real-time events.
-- **Event**: `updateList` - Triggered when the list of robot instances changes.
+- **Event**: `updateList` - Triggered when the list of robot instances changes, including extension registration/disconnection and tab metadata updates.
 - **Event**: `message` - General purpose message handling.
 
 ## License

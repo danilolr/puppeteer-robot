@@ -158,6 +158,7 @@ Use the optional query parameter `backend=chrome-extension` to reserve an idle c
 - If no idle robot exists in that pool, a new Puppeteer instance is created.
 - If no pool is used, a new Puppeteer instance is created.
 - For `chrome-extension`, the API reserves an idle connected extension session. It does not open or close Chrome.
+- Connected extension sessions are registered through Socket.IO and can appear in `/list` before they are reserved.
 - The API emits the WebSocket event `updateList` after successful creation.
 
 #### Response
@@ -327,9 +328,11 @@ curl -sS -X PUT http://localhost:3000/puppeteer-robot/error \
 
 ### `GET /puppeteer-robot/screenshot/:id`
 
-Takes a full-page screenshot from an active robot.
+Takes a full-page screenshot from an active Puppeteer robot.
 
 The response `data` field is a base64-encoded PNG image.
+
+Chrome extension robots currently return `INTERNAL_ERROR` because screenshots are not supported by `ChromeExtensionBackend` yet.
 
 #### Path Parameters
 
@@ -363,16 +366,41 @@ Lists all active robot instances currently held in memory.
 
 Robot instances are not persisted. Restarting the API clears the list.
 
+The response includes:
+
+- Puppeteer instances created by the API.
+- Connected Chrome extension sessions, including idle sessions that have connected but have not yet been reserved by `create`.
+
+Each item includes a `backend` field so clients can distinguish `puppeteer` from `chrome-extension`.
+
 #### Response
 
 ```json
 [
   {
     "robotId": "b6e8e947-ae84-4e8f-9c40-7794ef35f56f",
+    "backend": "puppeteer",
     "pool": "default",
+    "isIdleOnPool": false,
     "createdAt": "2026-06-07T10:00:00.000Z",
     "status": "BUSY",
     "errorInfo": null
+  },
+  {
+    "robotId": "ext_7f6db6f4c4b0",
+    "backend": "chrome-extension",
+    "pool": "default",
+    "isIdleOnPool": true,
+    "createdAt": "2026-06-07T10:01:00.000Z",
+    "status": "IDLE",
+    "currentTab": {
+      "id": 123,
+      "url": "https://example.com",
+      "title": "Example Domain",
+      "active": true,
+      "windowId": 1
+    },
+    "tabs": []
   }
 ]
 ```
@@ -401,6 +429,7 @@ Deletes or releases a robot instance.
 - If the robot has no pool, the browser is closed and the instance is removed.
 - If the robot belongs to a pool and is `BUSY`, it is marked as `IDLE` instead of being closed.
 - If the robot belongs to a pool and is `IDLE` or `ERROR`, it is closed and removed.
+- If the robot uses `chrome-extension`, Chrome is not closed and the extension is not unloaded. The session is only released back to `IDLE`.
 - The API emits the WebSocket event `updateList` after deletion/release.
 
 #### Response
@@ -629,7 +658,10 @@ Currently emitted after:
 
 - creating a robot;
 - deleting or releasing a robot;
-- reporting robot errors.
+- reporting robot errors;
+- registering a Chrome extension session;
+- updating Chrome extension tab metadata;
+- disconnecting a Chrome extension session.
 
 Payload:
 
@@ -638,6 +670,62 @@ Payload:
 ```
 
 ### Client Events
+
+#### `extension:register`
+
+Used by the Chrome extension backend to register or refresh a connected extension session.
+
+Payload:
+
+```json
+{
+  "instanceId": "ext_7f6db6f4c4b0",
+  "instanceName": "chrome-ext_7f6d",
+  "extensionId": "chrome-extension-id",
+  "version": "0.1.0",
+  "pool": "default"
+}
+```
+
+The server creates the session if the socket was connected without registration metadata in the Socket.IO handshake.
+
+#### `extension:tab:update`
+
+Updates the active tab metadata for a connected Chrome extension session.
+
+Payload:
+
+```json
+{
+  "id": 123,
+  "url": "https://example.com",
+  "title": "Example Domain",
+  "active": true,
+  "windowId": 1
+}
+```
+
+#### `extension:tabs:update`
+
+Updates the known tab list for a connected Chrome extension session.
+
+Payload:
+
+```json
+[
+  {
+    "id": 123,
+    "url": "https://example.com",
+    "title": "Example Domain",
+    "active": true,
+    "windowId": 1
+  }
+]
+```
+
+#### `extension:heartbeat`
+
+Refreshes `lastSeenAt` for a connected Chrome extension session.
 
 #### `message`
 

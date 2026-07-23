@@ -12,12 +12,16 @@ For MCP agents, prefer the dedicated MCP tools such as `navigate`, `type`, `clic
 
 ## Execution Context
 
-Commands are executed inside an async function created by the API. The command has access to:
+Commands are executed inside an async function created by the API.
+
+For `puppeteer` robots, the command has access to:
 
 - `browser`: the active Puppeteer `Browser`.
 - `page`: the latest opened Puppeteer `Page`.
 - `filePath(hash)`: helper that resolves an uploaded file path from its upload hash.
 - `downloadUrl(url, options)`: helper that downloads a URL through the API server and returns file metadata.
+
+For `chrome-extension` robots, the command runs in the selected Chrome tab page context. It can use page globals such as `window`, `document`, `localStorage`, and page-side `fetch`, but it does not expose Puppeteer objects or helpers such as `page`, `browser`, `filePath`, or `downloadUrl`.
 
 Because the command body is already inside an async function, you can use `await` directly.
 
@@ -400,13 +404,13 @@ Tool arguments:
 
 1. Create a robot.
 2. Navigate to the target page.
-3. Take a screenshot or get HTML.
+3. Take a screenshot for Puppeteer robots, or get HTML/text/page info for either backend.
 4. Identify selectors.
-5. Send commands such as `page.type`, `page.click`, or `page.evaluate`.
+5. Send backend-appropriate commands.
 6. Wait for navigation or page changes when needed.
 7. Return values from commands when the caller needs structured data.
 
-Example:
+Puppeteer `run_command` example:
 
 ```js
 await page.goto('https://google.com')
@@ -414,9 +418,16 @@ await page.waitForSelector('textarea[name="q"], input[name="q"]')
 return await page.evaluate(() => document.title)
 ```
 
+Chrome extension `run_command` example:
+
+```js
+window.location.href = 'https://google.com'
+return { url: window.location.href, title: document.title }
+```
+
 ## Safety Notes
 
-Commands execute arbitrary JavaScript with access to the current Puppeteer browser and page. Treat command execution as privileged access.
+Commands execute arbitrary JavaScript in the selected backend context. Treat command execution as privileged access.
 
 Recommended precautions:
 

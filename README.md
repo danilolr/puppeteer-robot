@@ -15,6 +15,7 @@ This monorepo contains two projects:
 
 - Browser automation via Puppeteer-managed Chromium
 - Browser automation via connected Chrome extension sessions
+- UI listing with the backend used by each robot/session
 - Real-time communication through WebSockets
 - MCP tools for browser automation agents
 - Swagger API documentation
@@ -106,6 +107,10 @@ curl -X POST http://localhost:3000/puppeteer-robot/create \
 
 For `ChromeExtensionBackend`, `create` reserves an idle connected extension session and `delete` releases it back to the pool. It does not open or close the user's Chrome browser.
 
+Connected extension sessions are also returned by `/puppeteer-robot/list` and appear in the Angular UI with backend `Chrome Extension`. The list can include idle extension sessions that have connected but have not yet been reserved by `create`.
+
+The Chrome extension backend executes JavaScript in the active Chrome tab context. It does not expose Puppeteer objects such as `page` or `browser`, and screenshots are not supported by this backend yet.
+
 ### Angular Configuration
 
 The frontend configuration is managed via `puppeteer-robot-ng/docker/config.json`, which is mounted into the Nginx container at `/usr/share/nginx/html/assets/config.json`. Update this file to change the API URL or other frontend settings.
@@ -142,6 +147,7 @@ The Angular dev server will start on port `4221` by default.
 puppeteer-robot/
 ├── docker-compose.yml              # Docker Compose orchestration
 ├── README.md
+├── chrome-extension/                # Unpacked Chrome extension backend
 ├── puppeteer-robot-api/             # NestJS backend
 │   ├── docker/
 │   │   └── Dockerfile

@@ -1,15 +1,17 @@
 # Puppeteer Robot NG
 
-This project is an Angular-based frontend application for managing and controlling Puppeteer robots. It communicates with a backend service (Puppeteer Robot API) to execute automation tasks, manage robot instances, and handle file uploads.
+This project is an Angular-based frontend application for managing and controlling Puppeteer Robot automation sessions. It communicates with the Puppeteer Robot API to execute automation tasks, manage robot instances, and handle file uploads.
 
 ## Features
 
-- **Robot Management**: Create and delete Puppeteer robot instances.
+- **Robot Management**: Create and delete Puppeteer robot instances, and view connected Chrome extension sessions.
 - **Task Execution**: Send commands to robots to run specific automation tasks.
-- **Monitoring**: View robot status and information.
+- **Monitoring**: View robot status, pool, creation time, and backend (`Puppeteer` or `Chrome Extension`).
 - **File Management**: Upload and delete files required for automation.
-- **Screenshots**: Capture screenshots from the robot instances.
+- **Screenshots**: Capture screenshots from Puppeteer robot instances.
 - **Real-time Updates**: Uses WebSockets (Socket.io) for real-time communication.
+
+Chrome extension sessions returned by `/puppeteer-robot/list` appear in the main robot table with backend `Chrome Extension`. The screenshot action is disabled for those sessions because the extension backend does not support screenshots yet.
 
 ## Prerequisites
 

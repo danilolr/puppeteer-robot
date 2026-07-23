@@ -90,6 +90,22 @@ export class StartPage implements OnInit {
     return errorInfo?.payload?.errorCode || this.getSelectedErrorDescriptionField('errorCode') || '-'
   }
 
+  getBackend(info: RobotInfo): string {
+    return info.backend || 'puppeteer'
+  }
+
+  getBackendLabel(info: RobotInfo): string {
+    const backend = this.getBackend(info)
+    if (backend === 'chrome-extension') {
+      return 'Chrome Extension'
+    }
+    return 'Puppeteer'
+  }
+
+  isChromeExtensionBackend(info: RobotInfo): boolean {
+    return this.getBackend(info) === 'chrome-extension'
+  }
+
   getSelectedErrorDetails(): string {
     return this.getSelectedErrorDescriptionField('details') || '-'
   }

@@ -74,6 +74,7 @@ Used when creating or acquiring a robot instance.
 {
   "ok": true,
   "robotId": "uuid",
+  "backend": "puppeteer",
   "isFromPool": false,
   "message": "optional message",
   "errorCode": "optional error code"
@@ -87,9 +88,15 @@ Used when listing active robots.
 ```json
 {
   "robotId": "uuid",
+  "backend": "puppeteer",
   "pool": "pool-name",
   "createdAt": "2026-06-07T10:00:00.000Z",
   "status": "BUSY",
+  "currentTab": {
+    "id": 123,
+    "url": "https://example.com",
+    "title": "Example"
+  },
   "errorInfo": {}
 }
 ```
@@ -100,6 +107,7 @@ Possible `status` values:
 IDLE
 BUSY
 ERROR
+DISCONNECTED
 ```
 
 ## REST Endpoints
@@ -125,9 +133,11 @@ curl -sS http://localhost:3000/puppeteer-robot/version \
 
 ### `POST /puppeteer-robot/create/:pool`
 
-Creates a new Puppeteer robot instance or reuses an idle instance from the requested pool.
+Creates or acquires a robot from the requested pool. By default this uses the `puppeteer` backend.
 
 If `pool` is `none` or an empty string, the robot is created without a pool.
+
+Use the optional query parameter `backend=chrome-extension` to reserve an idle connected Chrome extension session instead of creating a Puppeteer browser.
 
 #### Path Parameters
 
@@ -135,11 +145,19 @@ If `pool` is `none` or an empty string, the robot is created without a pool.
 |---|---|---:|---|
 | `pool` | string | yes | Pool name, or `none` for no pool. |
 
+#### Query Parameters
+
+| Name | Type | Required | Description |
+|---|---|---:|---|
+| `backend` | `puppeteer` or `chrome-extension` | no | Automation backend. Defaults to `puppeteer`. |
+| `instanceId` | string | no | Specific Chrome extension instance to reserve. Used only with `chrome-extension`. |
+
 #### Behavior
 
 - If `pool` is provided and an idle robot exists in that pool, that robot is marked as `BUSY` and returned.
 - If no idle robot exists in that pool, a new Puppeteer instance is created.
 - If no pool is used, a new Puppeteer instance is created.
+- For `chrome-extension`, the API reserves an idle connected extension session. It does not open or close Chrome.
 - The API emits the WebSocket event `updateList` after successful creation.
 
 #### Response
@@ -148,6 +166,7 @@ If `pool` is `none` or an empty string, the robot is created without a pool.
 {
   "ok": true,
   "robotId": "b6e8e947-ae84-4e8f-9c40-7794ef35f56f",
+  "backend": "puppeteer",
   "isFromPool": false
 }
 ```
@@ -168,17 +187,40 @@ curl -sS -X POST http://localhost:3000/puppeteer-robot/create/default \
   -H 'Authorization: Bearer your-api-token'
 ```
 
+Reserve a Chrome extension session from a pool:
+
+```bash
+curl -sS -X POST 'http://localhost:3000/puppeteer-robot/create/default?backend=chrome-extension' \
+  -H 'Authorization: Bearer your-api-token'
+```
+
+### `POST /puppeteer-robot/create`
+
+Creates or acquires a robot with a structured body.
+
+```json
+{
+  "backend": "chrome-extension",
+  "pool": "default",
+  "instanceId": "ext_optional_specific_instance"
+}
+```
+
+`backend` defaults to `puppeteer`. `instanceId` is only used by the `chrome-extension` backend.
+
 ---
 
 ### `PUT /puppeteer-robot/run`
 
-Runs JavaScript against the latest page of an active Puppeteer robot instance.
+Runs JavaScript against an active robot.
 
-The command body is inserted into an async function and executed with access to:
+For `puppeteer` robots, the command body is inserted into an async function and executed with access to:
 
 - `page`: the current Puppeteer page.
 - `browser`: the Puppeteer browser.
 - `filePath(hash)`: helper that resolves uploaded file paths by upload hash.
+
+For `chrome-extension` robots, the command is executed in the selected Chrome tab main world. It has access to page globals such as `window` and `document`, but not Puppeteer objects such as `page` or `browser`.
 
 This endpoint executes arbitrary JavaScript. Use it only in trusted environments.
 

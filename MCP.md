@@ -2,7 +2,12 @@
 
 This project exposes the NestJS backend as a Model Context Protocol (MCP) server.
 
-The MCP implementation runs inside the same NestJS process as the REST API and calls the same `RobotService` used by `RobotController`. Because of that, MCP tools and REST endpoints share the same in-memory Puppeteer robot instances.
+The MCP implementation runs inside the same NestJS process as the REST API and calls the same `RobotService` used by `RobotController`. Because of that, MCP tools and REST endpoints share the same in-memory robot registry.
+
+Robots can use either backend:
+
+- `puppeteer`: creates or reuses a Chromium instance managed by Puppeteer.
+- `chrome-extension`: reserves a connected Chrome extension session and executes commands in the user's real Chrome tab.
 
 ## Endpoint
 
@@ -65,19 +70,23 @@ Input: none.
 
 #### `create_robot`
 
-Creates a Puppeteer robot instance.
+Creates a Puppeteer robot instance or reserves a connected Chrome extension session.
 
 Input:
 
 ```json
 {
-  "pool": "optional-pool-name"
+  "backend": "puppeteer",
+  "pool": "optional-pool-name",
+  "instanceId": "optional-extension-instance-id"
 }
 ```
 
+`backend` is optional and defaults to `puppeteer`. Use `chrome-extension` to reserve an idle extension session. `instanceId` is only used by `chrome-extension` when a specific connected extension should be reserved.
+
 #### `list_robots`
 
-Lists active Puppeteer robot instances.
+Lists active Puppeteer robot instances and connected Chrome extension sessions.
 
 Input: none.
 

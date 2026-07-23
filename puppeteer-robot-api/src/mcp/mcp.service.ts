@@ -117,10 +117,12 @@ export class McpService {
     server.registerTool(
       'create_robot',
       {
-        title: 'Create Puppeteer Robot',
-        description: 'Creates a Puppeteer robot instance, optionally associated with a pool.',
+        title: 'Create Browser Robot',
+        description: 'Creates a Puppeteer robot or reserves a connected Chrome extension session, optionally associated with a pool.',
         inputSchema: {
           pool: z.string().optional().describe('Optional pool name.'),
+          backend: z.enum(['puppeteer', 'chrome-extension']).optional().describe('Automation backend. Defaults to puppeteer.'),
+          instanceId: z.string().optional().describe('Specific Chrome extension instance id to reserve.'),
         },
         annotations: {
           readOnlyHint: false,
@@ -129,8 +131,8 @@ export class McpService {
           openWorldHint: false,
         },
       },
-      async ({ pool }) => {
-        const response = await this.robotService.create(pool ?? null)
+      async ({ pool, backend, instanceId }) => {
+        const response = await this.robotService.create(pool ?? null, backend, instanceId)
         return this.textResult(response)
       },
     )

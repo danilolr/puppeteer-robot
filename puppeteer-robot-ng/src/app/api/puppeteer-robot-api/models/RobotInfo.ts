@@ -30,6 +30,12 @@ export interface RobotInfo {
      * @type {string}
      * @memberof RobotInfo
      */
+    backend?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RobotInfo
+     */
     pool: string;
     /**
      * 
@@ -92,6 +98,7 @@ export function RobotInfoFromJSONTyped(json: any, ignoreDiscriminator: boolean):
     return {
         
         'robotId': json['robotId'],
+        'backend': json['backend'] == null ? undefined : json['backend'],
         'pool': json['pool'],
         'isIdleOnPool': json['isIdleOnPool'],
         'createdAt': (new Date(json['createdAt'])),
@@ -112,6 +119,7 @@ export function RobotInfoToJSONTyped(value?: RobotInfo | null, ignoreDiscriminat
     return {
         
         'robotId': value['robotId'],
+        'backend': value['backend'],
         'pool': value['pool'],
         'isIdleOnPool': value['isIdleOnPool'],
         'createdAt': ((value['createdAt']).toISOString()),
@@ -119,4 +127,3 @@ export function RobotInfoToJSONTyped(value?: RobotInfo | null, ignoreDiscriminat
         'errorInfo': value['errorInfo'],
     };
 }
-

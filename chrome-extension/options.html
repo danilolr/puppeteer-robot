@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MCP Chrome Remote Executor</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="panel">
+      <header>
+        <h1>MCP Chrome Remote Executor</h1>
+        <p>Configure o servidor Socket.IO usado pela extensão.</p>
+      </header>
+
+      <form id="settingsForm">
+        <label for="serverUrl">Endereço do servidor</label>
+        <div class="input-row">
+          <input
+            id="serverUrl"
+            name="serverUrl"
+            type="url"
+            placeholder="http://localhost:3000"
+            required
+          />
+          <button type="submit">Salvar</button>
+        </div>
+
+        <label for="pool">Pool</label>
+        <input
+          id="pool"
+          name="pool"
+          type="text"
+          placeholder="none"
+        />
+      </form>
+
+      <section class="status">
+        <div>
+          <span>Conexão</span>
+          <strong id="connectionStatus">Verificando</strong>
+        </div>
+        <div>
+          <span>Instância</span>
+          <strong id="instanceId">-</strong>
+        </div>
+        <div>
+          <span>Pool</span>
+          <strong id="poolStatus">-</strong>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button id="refreshStatus" type="button">Atualizar status</button>
+        <button id="restoreDefault" type="button">Restaurar padrão</button>
+      </div>
+
+      <p id="message" class="message" role="status"></p>
+    </main>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

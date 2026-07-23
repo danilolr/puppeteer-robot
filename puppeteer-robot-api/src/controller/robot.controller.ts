@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Res, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Res, UseGuards } from '@nestjs/common'
 import { RobotService } from 'src/service/robot.service'
 import { ApiBearerAuth, ApiConsumes, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { DownloadResult, RobotCommandReq, RobotCommandResp, RobotCreateResp, RobotErrorReq, RobotInfo, UploadParams, UploadResult } from 'src/model/robot.model';
+import { DownloadResult, RobotBackendEnum, RobotCommandReq, RobotCommandResp, RobotCreateReq, RobotCreateResp, RobotErrorReq, RobotInfo, UploadParams, UploadResult } from 'src/model/robot.model';
 import { FormDataRequest } from 'nestjs-form-data';
 import { AuthGuard } from 'src/service/auth.guard';
 import { Response } from 'express';
@@ -22,14 +22,28 @@ export class RobotController {
     return await this.robotService.version()
   }
 
+  @Post('/create')
+  @ApiTags('puppeteer-robot')
+  @ApiResponse({
+    status: 200,
+    type: RobotCreateResp,
+  })
+  async createFromBody(@Body() dto: RobotCreateReq = {}): Promise<RobotCreateResp> {
+    return await this.robotService.createFromRequest(dto)
+  }
+
   @Post('/create/:pool')
   @ApiTags('puppeteer-robot')
   @ApiResponse({
     status: 200,
     type: RobotCreateResp,
   })
-  async create(@Param("pool") pool: string): Promise<RobotCreateResp> {
-    return await this.robotService.create(pool=="none" || pool === "" ? null : pool)
+  async create(
+    @Param("pool") pool: string,
+    @Query("backend") backend?: RobotBackendEnum,
+    @Query("instanceId") instanceId?: string,
+  ): Promise<RobotCreateResp> {
+    return await this.robotService.create(pool=="none" || pool === "" ? null : pool, backend, instanceId)
   }
 
   @Put('/run')

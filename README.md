@@ -1,6 +1,6 @@
 # Puppeteer Robot
 
-A web-based automation platform powered by [Puppeteer](https://pptr.dev/), built with a **NestJS** backend API and an **Angular** frontend.
+A web-based browser automation platform with two automation backends: [Puppeteer](https://pptr.dev/) managed Chromium instances and connected Chrome extension sessions. It is built with a **NestJS** backend API and an **Angular** frontend.
 
 ## Overview
 
@@ -8,13 +8,15 @@ This monorepo contains two projects:
 
 | Project | Directory | Description | Tech Stack |
 |---|---|---|---|
-| **API** | `puppeteer-robot-api/` | Backend REST API with WebSocket support | NestJS 11, Puppeteer Core, Socket.IO |
+| **API** | `puppeteer-robot-api/` | Backend REST/MCP API with Puppeteer and Chrome extension backends | NestJS 11, Puppeteer Core, Socket.IO |
 | **Frontend** | `puppeteer-robot-ng/` | Web interface for managing automation tasks | Angular 20, Tailwind CSS, Socket.IO Client |
 
 ### Key Features
 
-- Browser automation via Puppeteer (headless Chromium)
+- Browser automation via Puppeteer-managed Chromium
+- Browser automation via connected Chrome extension sessions
 - Real-time communication through WebSockets
+- MCP tools for browser automation agents
 - Swagger API documentation
 
 ---
@@ -86,6 +88,23 @@ LOGS_PATH/<robotId>/<sessionId>/<operation>-<timestamp>-<uuid>.json
 
 Logged operations include `run_command`, `run_javascript_on_page`, `navigate`, `type`, `set_value`, and `click`.
 
+### Automation Backends
+
+The default backend is `puppeteer`. The legacy endpoint still creates or acquires a Puppeteer robot:
+
+```bash
+curl -X POST http://localhost:3000/puppeteer-robot/create/none
+```
+
+To reserve a connected Chrome extension session, load `chrome-extension` as an unpacked Chrome extension and configure its server URL and optional pool. Then create a robot with:
+
+```bash
+curl -X POST http://localhost:3000/puppeteer-robot/create \
+  -H 'Content-Type: application/json' \
+  -d '{"backend":"chrome-extension","pool":"my-pool"}'
+```
+
+For `ChromeExtensionBackend`, `create` reserves an idle connected extension session and `delete` releases it back to the pool. It does not open or close the user's Chrome browser.
 
 ### Angular Configuration
 

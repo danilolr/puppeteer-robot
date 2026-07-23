@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "MCP Chrome Remote Executor",
+  "version": "0.1.0",
+  "description": "Connects to the MCP Chrome API and executes Socket.IO commands in browser tabs.",
+  "minimum_chrome_version": "116",
+  "permissions": ["tabs", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

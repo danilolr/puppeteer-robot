@@ -1,6 +1,24 @@
 import { ApiProperty } from "@nestjs/swagger"
 import { FileSystemStoredFile, IsFile, MaxFileSize } from "nestjs-form-data"
 
+export enum RobotBackendEnum {
+    PUPPETEER = "puppeteer",
+    CHROME_EXTENSION = "chrome-extension",
+}
+
+export class RobotCreateReq {
+
+    @ApiProperty({ enum: RobotBackendEnum, required: false, default: RobotBackendEnum.PUPPETEER })
+    backend?: RobotBackendEnum
+
+    @ApiProperty({ required: false })
+    pool?: string
+
+    @ApiProperty({ required: false, description: "Specific Chrome extension instance id to reserve." })
+    instanceId?: string
+
+}
+
 export class RobotCommandReq {
 
     @ApiProperty()
@@ -69,6 +87,9 @@ export class RobotCreateResp {
     @ApiProperty({ required: false })
     robotId?: string
 
+    @ApiProperty({ enum: RobotBackendEnum, required: false })
+    backend?: RobotBackendEnum | string
+
     @ApiProperty({ required: false })
     isFromPool?: boolean
 
@@ -131,13 +152,36 @@ export class DownloadResult {
 export enum RobotStatusEnum {
     IDLE = "IDLE",
     BUSY = "BUSY",
-    ERROR = "ERROR"
+    ERROR = "ERROR",
+    DISCONNECTED = "DISCONNECTED",
+}
+
+export class BrowserTabInfo {
+
+    @ApiProperty({ required: false })
+    id?: number
+
+    @ApiProperty({ required: false })
+    url?: string
+
+    @ApiProperty({ required: false })
+    title?: string
+
+    @ApiProperty({ required: false })
+    active?: boolean
+
+    @ApiProperty({ required: false })
+    windowId?: number
+
 }
 
 export class RobotInfo {
 
     @ApiProperty()
     robotId: string
+
+    @ApiProperty({ enum: RobotBackendEnum, required: false })
+    backend?: RobotBackendEnum | string
 
     @ApiProperty()
     pool?: string
@@ -153,5 +197,11 @@ export class RobotInfo {
 
     @ApiProperty({required: false})
     errorInfo?: any
+
+    @ApiProperty({ required: false, type: BrowserTabInfo })
+    currentTab?: BrowserTabInfo
+
+    @ApiProperty({ required: false, type: [BrowserTabInfo] })
+    tabs?: BrowserTabInfo[]
 
 }

@@ -37,7 +37,7 @@ A NestJS-based REST and MCP API service designed to manage and control browser a
    - Ensure the `TEMP_FILE_PATH` variable is set if you are not using the default setup.
    - Optionally set `LOGS_PATH` to write JSON logs for Puppeteer command calls grouped by `<robotId>/<sessionId>`.
 
-When `LOGS_PATH` is set, logs for `run_command`, `run_javascript_on_page`, `navigate`, `type`, `set_value`, and `click` are written as:
+When `LOGS_PATH` is set, logs for `run_command`, `run_javascript_on_page`, `navigate`, `type`, `set_value`, `click`, and `capture_file_from_action` are written as:
 
 ```text
 LOGS_PATH/<robotId>/<sessionId>/<operation>-<timestamp>-<uuid>.json
@@ -96,6 +96,7 @@ http://localhost:3000/puppeteer-robot/api/v1/swagger
 - **POST** `/puppeteer-robot/create/:pool`: Create a Puppeteer browser instance or reserve a Chrome extension session with `backend=chrome-extension`.
 - **POST** `/puppeteer-robot/create`: Structured create/reserve endpoint accepting `backend`, `pool`, and `instanceId`.
 - **PUT** `/puppeteer-robot/run`: Execute a command on a specific instance.
+- **MCP** `capture_file_from_action`: Capture a file produced by a Puppeteer click/action.
 - **GET** `/puppeteer-robot/screenshot/:id`: Take a screenshot of an active Puppeteer session.
 - **GET** `/puppeteer-robot/list`: List active Puppeteer instances and connected Chrome extension sessions. Each item includes `backend`.
 - **DELETE** `/puppeteer-robot/delete/:id`: Terminate a Puppeteer browser instance or release a Chrome extension session.

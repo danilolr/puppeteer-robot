@@ -467,6 +467,40 @@ export class McpService {
     )
 
     server.registerTool(
+      'capture_file_from_action',
+      {
+        title: 'Capture File From Browser Action',
+        description: 'Runs a browser action while observing Puppeteer network activity and stores the first matching file response.',
+        inputSchema: {
+          robotId: z.string().min(1).describe('Robot ID.'),
+          action: z.object({
+            type: z.literal('click').describe('Browser action to execute while capture is active.'),
+            selector: z.string().min(1).describe('CSS selector to click.'),
+            waitForNavigation: z.boolean().optional().describe('Whether to wait for navigation caused by the click.'),
+            waitUntil: waitUntilSchema.optional().describe('Navigation wait condition when waitForNavigation is true.'),
+          }).describe('Action that should trigger the file. Only click is supported initially.'),
+          match: z.object({
+            contentTypes: z.array(z.string().min(1)).optional().describe('Allowed MIME types, for example application/pdf. Wildcards like application/* are supported.'),
+            urlContains: z.string().optional().describe('Only capture responses whose URL contains this string.'),
+            urlPattern: z.string().optional().describe('Regular expression pattern that the response URL must match.'),
+          }).optional().describe('Optional filters for the captured file response.'),
+          timeoutMs: z.number().int().positive().optional().describe('Capture timeout in milliseconds. Defaults to 30000.'),
+          fileName: z.string().optional().describe('Optional file name to use when saving the captured file.'),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: true,
+        },
+      },
+      async ({ robotId, action, match, timeoutMs, fileName }) => {
+        const response = await this.robotService.captureFileFromAction(robotId, action, match, timeoutMs, fileName)
+        return this.commandResult(response)
+      },
+    )
+
+    server.registerTool(
       'get_file',
       {
         title: 'Get Downloaded File',

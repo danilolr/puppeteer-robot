@@ -47,6 +47,7 @@ Logged MCP tools:
 - `type`
 - `set_value`
 - `click`
+- `capture_file_from_action`
 
 Files are grouped by robot and browser session:
 
@@ -319,6 +320,34 @@ Input:
 ```
 
 The `fileName` field is optional. The response contains a `fileId` that can be used with `get_file`.
+
+#### `capture_file_from_action`
+
+Runs a browser action while observing Puppeteer network activity and stores the first matching file response.
+
+Input:
+
+```json
+{
+  "robotId": "robot-id",
+  "action": {
+    "type": "click",
+    "selector": "#generate-report",
+    "waitForNavigation": false
+  },
+  "match": {
+    "contentTypes": ["application/pdf"],
+    "urlContains": "report",
+    "urlPattern": "report|pdf"
+  },
+  "timeoutMs": 30000,
+  "fileName": "relatorio.pdf"
+}
+```
+
+`match`, `timeoutMs`, and `fileName` are optional. Without `match`, the backend captures the first clearly file-like response such as PDF, attachment, octet-stream, CSV, XLS/XLSX, DOC/DOCX, ZIP, or a known file extension.
+
+Only `action.type = "click"` is supported initially. This tool is implemented for `puppeteer` robots only; `chrome-extension` robots return a controlled unsupported-backend error.
 
 #### `get_file`
 

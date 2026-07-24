@@ -369,6 +369,43 @@ Example response data:
 
 When `fileName` is not provided, the helper resolves the file name from `Content-Disposition` or from the URL path. The helper sends the current page cookies, user agent, and referer when downloading the URL. This helps with files protected by the current browser session.
 
+---
+
+### Capture a File Produced by a Click
+
+Use `captureFileFromAction` when the page only produces the file after a browser action and the final URL is not available before clicking.
+
+```js
+const file = await captureFileFromAction(async () => {
+  await page.click('#generate-report')
+})
+
+return {
+  ok: true,
+  file
+}
+```
+
+Optional filters reduce false positives:
+
+```js
+const file = await captureFileFromAction(async () => {
+  await page.click('#generate-report')
+}, {
+  contentTypes: ['application/pdf'],
+  urlPattern: 'report|pdf',
+  timeoutMs: 30000,
+  fileName: 'relatorio.pdf'
+})
+
+return {
+  ok: true,
+  file
+}
+```
+
+This helper is available for Puppeteer robots only. For MCP, prefer the dedicated `capture_file_from_action` tool when a simple `click` action is enough.
+
 ## Sending Commands with REST
 
 ```bash

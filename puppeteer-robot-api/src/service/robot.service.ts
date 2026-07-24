@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common/decorators/core/injectable.decorator"
 import { PuppeteerService } from "./puppeteer.service"
-import { DownloadResult, RobotBackendEnum, RobotCommandReq, RobotCommandResp, RobotCreateReq, RobotCreateResp, RobotErrorReq, RobotInfo, RunStatusEnum, UploadResult } from "src/model/robot.model"
+import { CaptureFileAction, CaptureFileMatchOptions, DownloadResult, RobotBackendEnum, RobotCommandReq, RobotCommandResp, RobotCreateReq, RobotCreateResp, RobotErrorReq, RobotInfo, RunStatusEnum, UploadResult } from "src/model/robot.model"
 import { FileSystemStoredFile } from "nestjs-form-data"
 import { WsGateway } from "./ws.gateway"
 import { RunLogService } from "./run-log.service"
@@ -145,6 +145,30 @@ export class RobotService {
 
   async downloadUrl(robotId: string, url: string, fileName?: string): Promise<RobotCommandResp> {
     return this.puppeteerService.downloadUrl(robotId, url, fileName)
+  }
+
+  async captureFileFromAction(
+    robotId: string,
+    action: CaptureFileAction,
+    match?: CaptureFileMatchOptions,
+    timeoutMs?: number,
+    fileName?: string,
+  ): Promise<RobotCommandResp> {
+    return this.runLoggedOperation(
+      'capture_file_from_action',
+      robotId,
+      { robotId, action, match, timeoutMs, fileName },
+      () => {
+        if (this.isChromeExtensionRobot(robotId)) {
+          return Promise.resolve({
+            status: RunStatusEnum.INTERNAL_ERROR,
+            message: 'capture_file_from_action is not supported by ChromeExtensionBackend yet',
+            data: null,
+          })
+        }
+        return this.puppeteerService.captureFileFromAction(robotId, action, match, timeoutMs, fileName)
+      },
+    )
   }
 
   async pageInfo(robotId: string): Promise<RobotCommandResp> {

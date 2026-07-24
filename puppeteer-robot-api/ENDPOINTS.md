@@ -614,13 +614,14 @@ page_info
 inspect_interactive_elements
 upload_file_to_input
 download_url
+capture_file_from_action
 get_file
 run_command
 run_javascript_on_page
 take_screenshot
 ```
 
-When `LOGS_PATH` is configured, the following command tools write JSON logs: `run_command`, `run_javascript_on_page`, `navigate`, `type`, `set_value`, and `click`.
+When `LOGS_PATH` is configured, the following command tools write JSON logs: `run_command`, `run_javascript_on_page`, `navigate`, `type`, `set_value`, `click`, and `capture_file_from_action`.
 
 Logs are stored under:
 

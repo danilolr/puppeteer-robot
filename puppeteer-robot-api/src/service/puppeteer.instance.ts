@@ -1,5 +1,5 @@
-import puppeteer, { Browser, Page } from 'puppeteer-core'
-import { RobotCommandResp, RobotErrorReq, RobotStatusEnum, RunStatusEnum } from 'src/model/robot.model'
+import puppeteer, { Browser, HTTPResponse, Page } from 'puppeteer-core'
+import { CaptureFileFromActionOptions, CaptureFileMatchOptions, RobotCommandResp, RobotErrorReq, RobotStatusEnum, RunStatusEnum } from 'src/model/robot.model'
 const fs = require('fs')
 const path = require('path')
 const { randomUUID } = require('crypto')
@@ -7,6 +7,10 @@ const { Readable } = require('stream')
 const { pipeline } = require('stream/promises')
 
 type WaitUntil = 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2'
+type CaptureFileFromClickOptions = CaptureFileFromActionOptions & {
+    waitForNavigation?: boolean
+    waitUntil?: string
+}
 
 export class PuppeteerInstance {
     private browser: Browser
@@ -52,6 +56,10 @@ export class PuppeteerInstance {
             const page = pages[pages.length - 1]
             const filePath = this.getFilePath
             const downloadUrl = (url: string, options?: { fileName?: string }) => this.downloadUrl(url, options, page)
+            const captureFileFromAction = (
+                action: () => Promise<unknown>,
+                options?: CaptureFileFromActionOptions,
+            ) => this.captureFileFromAction(action, options, page)
             var fnDef = `
 async function exec() {
     ${command} 
@@ -227,6 +235,40 @@ exec()`
         return {
             ok: file.ok !== false,
             file,
+        }
+    }
+
+    async captureFileFromClick(
+        selector: string,
+        options: CaptureFileFromClickOptions = {},
+    ): Promise<any> {
+        try {
+            const page = await this.getCurrentPage()
+            const file = await this.captureFileFromAction(async () => {
+                const element = await page.waitForSelector(selector, { visible: true, timeout: options.timeoutMs ?? 30000 })
+                if (!element) {
+                    throw new Error(`Selector not found: ${selector}`)
+                }
+                await element.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' }))
+
+                if (options.waitForNavigation) {
+                    await Promise.all([
+                        page.waitForNavigation({ waitUntil: (options.waitUntil as WaitUntil) ?? 'networkidle2', timeout: options.timeoutMs ?? 30000 }),
+                        element.click(),
+                    ])
+                } else {
+                    await element.click()
+                }
+            }, options, page)
+            return {
+                ok: true,
+                file,
+            }
+        } catch (error) {
+            return {
+                ok: false,
+                message: error.message,
+            }
         }
     }
 
@@ -686,6 +728,350 @@ exec()`
         } catch (error) {
             return { ok: false, message: `Download failed: ${error.message}` }
         }
+    }
+
+    private async captureFileFromAction(
+        action: () => Promise<unknown>,
+        options: CaptureFileFromActionOptions = {},
+        page: Page,
+    ): Promise<any> {
+        const timeoutMs = options.timeoutMs ?? 30000
+        const observedPages = new Set<Page>()
+        const cleanupFns: Array<() => void> = []
+        let finished = false
+
+        return await new Promise<any>((resolve, reject) => {
+            const cleanup = () => {
+                for (const cleanupFn of cleanupFns.splice(0)) {
+                    cleanupFn()
+                }
+            }
+
+            const finishSuccess = (file: any) => {
+                if (finished) return
+                finished = true
+                cleanup()
+                resolve(file)
+            }
+
+            const finishError = (error: Error) => {
+                if (finished) return
+                finished = true
+                cleanup()
+                reject(error)
+            }
+
+            const timer = setTimeout(() => {
+                finishError(new Error(`No matching file was captured within ${timeoutMs}ms`))
+            }, timeoutMs)
+            cleanupFns.push(() => clearTimeout(timer))
+
+            const handleResponse = (response: HTTPResponse) => {
+                void this.captureResponseFile(response, options)
+                    .then((file) => {
+                        if (file) {
+                            finishSuccess(file)
+                        }
+                    })
+                    .catch((error) => {
+                        console.warn(`Could not capture response file: ${error.message}`)
+                    })
+            }
+
+            const tryCaptureUrl = (url: string) => {
+                void this.captureUrlFile(url, options, page)
+                    .then((file) => {
+                        if (file) {
+                            finishSuccess(file)
+                        }
+                    })
+                    .catch((error) => {
+                        console.warn(`Could not capture URL file: ${error.message}`)
+                    })
+            }
+
+            const observePage = (observedPage: Page | null) => {
+                if (!observedPage || observedPages.has(observedPage)) {
+                    return
+                }
+                observedPages.add(observedPage)
+                const handleFrameNavigated = (frame: any) => {
+                    if (frame === observedPage.mainFrame()) {
+                        tryCaptureUrl(frame.url())
+                    }
+                }
+                observedPage.on('response', handleResponse)
+                observedPage.on('popup', observePage)
+                observedPage.on('framenavigated', handleFrameNavigated)
+                cleanupFns.push(() => observedPage.off('response', handleResponse))
+                cleanupFns.push(() => observedPage.off('popup', observePage))
+                cleanupFns.push(() => observedPage.off('framenavigated', handleFrameNavigated))
+                tryCaptureUrl(observedPage.url())
+            }
+
+            const handleTargetCreated = (target: any) => {
+                void target.page()
+                    .then((targetPage: Page | null) => observePage(targetPage))
+                    .catch(() => undefined)
+            }
+
+            observePage(page)
+            this.browser.on('targetcreated', handleTargetCreated)
+            cleanupFns.push(() => this.browser.off('targetcreated', handleTargetCreated))
+
+            Promise.resolve()
+                .then(action)
+                .catch((error) => finishError(error instanceof Error ? error : new Error(String(error))))
+        })
+    }
+
+    private async captureResponseFile(
+        response: HTTPResponse,
+        options: CaptureFileFromActionOptions,
+    ): Promise<any | null> {
+        if (!this.shouldCaptureResponse(response, options)) {
+            return null
+        }
+
+        const buffer = await response.buffer()
+        if (!buffer || buffer.length === 0) {
+            return null
+        }
+
+        const headers = response.headers()
+        const sourceUrl = new URL(response.url())
+        const mimeType = this.headerValue(headers, 'content-type')?.split(';')[0]?.trim() || 'application/octet-stream'
+        return this.saveDownloadedBuffer(buffer, {
+            fileName: options.fileName,
+            contentDisposition: this.headerValue(headers, 'content-disposition'),
+            mimeType,
+            sourceUrl,
+            source: 'capture_file_from_action',
+            requestMethod: response.request()?.method?.(),
+            responseStatus: response.status(),
+        })
+    }
+
+    private async captureUrlFile(
+        url: string,
+        options: CaptureFileFromActionOptions,
+        page: Page,
+    ): Promise<any | null> {
+        let sourceUrl: URL
+        try {
+            sourceUrl = new URL(url)
+        } catch {
+            return null
+        }
+
+        if (sourceUrl.protocol !== 'http:' && sourceUrl.protocol !== 'https:') {
+            return null
+        }
+
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 30000)
+
+        try {
+            const cookies = await page.cookies(sourceUrl.toString())
+            const cookieHeader = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+            const userAgent = await page.evaluate(() => navigator.userAgent)
+            const response = await fetch(sourceUrl.toString(), {
+                headers: {
+                    'User-Agent': userAgent,
+                    'Referer': page.url(),
+                    ...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
+                },
+                signal: controller.signal,
+            })
+
+            if (!this.shouldCaptureFetchResponse(response, sourceUrl, options)) {
+                return null
+            }
+
+            const arrayBuffer = await response.arrayBuffer()
+            const buffer = Buffer.from(arrayBuffer)
+            if (!buffer.length) {
+                return null
+            }
+
+            const mimeType = response.headers.get('content-type')?.split(';')[0]?.trim() || 'application/octet-stream'
+            return this.saveDownloadedBuffer(buffer, {
+                fileName: options.fileName,
+                contentDisposition: response.headers.get('content-disposition'),
+                mimeType,
+                sourceUrl,
+                source: 'capture_file_from_action_url',
+                requestMethod: 'GET',
+                responseStatus: response.status,
+            })
+        } finally {
+            clearTimeout(timeout)
+        }
+    }
+
+    private shouldCaptureResponse(response: HTTPResponse, options: CaptureFileFromActionOptions): boolean {
+        const status = response.status()
+        if (status < 200 || status >= 400) {
+            return false
+        }
+
+        let sourceUrl: URL
+        try {
+            sourceUrl = new URL(response.url())
+        } catch {
+            return false
+        }
+
+        if (sourceUrl.protocol !== 'http:' && sourceUrl.protocol !== 'https:') {
+            return false
+        }
+
+        const headers = response.headers()
+        const mimeType = this.headerValue(headers, 'content-type')?.split(';')[0]?.trim().toLowerCase() || ''
+        const contentDisposition = this.headerValue(headers, 'content-disposition') || ''
+        const match = this.getCaptureMatchOptions(options)
+        const hasExplicitMatch = Boolean(
+            match.contentTypes?.length ||
+            match.urlContains ||
+            match.urlPattern
+        )
+
+        if (hasExplicitMatch) {
+            if (match.contentTypes?.length && !this.contentTypeMatches(mimeType, match.contentTypes)) {
+                return false
+            }
+            if (match.urlContains && !sourceUrl.toString().includes(match.urlContains)) {
+                return false
+            }
+            if (match.urlPattern && !this.urlPatternMatches(sourceUrl.toString(), match.urlPattern)) {
+                return false
+            }
+            return true
+        }
+
+        return this.isDefaultFileResponse(sourceUrl, mimeType, contentDisposition)
+    }
+
+    private shouldCaptureFetchResponse(response: Awaited<ReturnType<typeof fetch>>, sourceUrl: URL, options: CaptureFileFromActionOptions): boolean {
+        if (!response.ok) {
+            return false
+        }
+
+        const mimeType = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() || ''
+        const contentDisposition = response.headers.get('content-disposition') || ''
+        const match = this.getCaptureMatchOptions(options)
+        const hasExplicitMatch = Boolean(
+            match.contentTypes?.length ||
+            match.urlContains ||
+            match.urlPattern
+        )
+
+        if (hasExplicitMatch) {
+            if (match.contentTypes?.length && !this.contentTypeMatches(mimeType, match.contentTypes)) {
+                return false
+            }
+            if (match.urlContains && !sourceUrl.toString().includes(match.urlContains)) {
+                return false
+            }
+            if (match.urlPattern && !this.urlPatternMatches(sourceUrl.toString(), match.urlPattern)) {
+                return false
+            }
+            return true
+        }
+
+        return this.isDefaultFileResponse(sourceUrl, mimeType, contentDisposition)
+    }
+
+    private getCaptureMatchOptions(options: CaptureFileFromActionOptions): CaptureFileMatchOptions {
+        return {
+            contentTypes: options.match?.contentTypes ?? options.contentTypes,
+            urlContains: options.match?.urlContains ?? options.urlContains,
+            urlPattern: options.match?.urlPattern ?? options.urlPattern,
+        }
+    }
+
+    private isDefaultFileResponse(sourceUrl: URL, mimeType: string, contentDisposition: string): boolean {
+        if (/attachment|filename=/i.test(contentDisposition)) {
+            return true
+        }
+
+        const fileMimeTypes = new Set([
+            'application/pdf',
+            'application/octet-stream',
+            'application/zip',
+            'application/x-zip-compressed',
+            'text/csv',
+            'application/csv',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ])
+
+        if (fileMimeTypes.has(mimeType)) {
+            return true
+        }
+
+        const pathname = sourceUrl.pathname.toLowerCase()
+        return ['.pdf', '.csv', '.xls', '.xlsx', '.zip', '.doc', '.docx'].some(ext => pathname.endsWith(ext))
+    }
+
+    private contentTypeMatches(actualMimeType: string, expectedMimeTypes: string[]): boolean {
+        return expectedMimeTypes.some(expected => {
+            const normalized = expected.toLowerCase().trim()
+            if (normalized.endsWith('/*')) {
+                return actualMimeType.startsWith(normalized.slice(0, -1))
+            }
+            return actualMimeType === normalized
+        })
+    }
+
+    private urlPatternMatches(url: string, pattern: string): boolean {
+        try {
+            return new RegExp(pattern).test(url)
+        } catch {
+            return url.includes(pattern)
+        }
+    }
+
+    private saveDownloadedBuffer(buffer: Buffer, params: {
+        fileName?: string
+        contentDisposition?: string | null
+        mimeType: string
+        sourceUrl: URL
+        source: string
+        requestMethod?: string
+        responseStatus?: number
+    }): any {
+        const fileName = this.resolveDownloadFileName(params.fileName, params.contentDisposition ?? null, params.sourceUrl, params.mimeType)
+        const fileId = randomUUID()
+        const dir = `${process.env.TEMP_FILE_PATH}/download/${fileId}`
+        const fileDiskPath = `${dir}/${fileName}`
+
+        fs.mkdirSync(dir, { recursive: true })
+        fs.writeFileSync(fileDiskPath, buffer)
+        const size = fs.statSync(fileDiskPath).size
+
+        const metadata = {
+            ok: true,
+            fileId,
+            fileName,
+            mimeType: params.mimeType,
+            size,
+            sourceUrl: params.sourceUrl.toString(),
+            downloadedAt: new Date().toISOString(),
+            robotId: this.insanceId,
+            downloadUrl: `/puppeteer-robot/file/download/${fileId}`,
+            source: params.source,
+            requestMethod: params.requestMethod,
+            responseStatus: params.responseStatus,
+        }
+        fs.writeFileSync(`${dir}/metadata.json`, JSON.stringify(metadata))
+        return metadata
+    }
+
+    private headerValue(headers: Record<string, string>, name: string): string | undefined {
+        return headers[name] ?? headers[name.toLowerCase()] ?? headers[name.toUpperCase()]
     }
 
     private resolveDownloadFileName(fileName: string | undefined, contentDisposition: string | null, sourceUrl: URL, mimeType: string): string {

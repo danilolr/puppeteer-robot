@@ -93,9 +93,9 @@ Possible treatment:
 - or instrument browser APIs such as `Blob` and `URL.createObjectURL`;
 - save the binary content before it becomes only a `blob:` viewer URL.
 
-## Proposed Future Helper
+## Action Capture Helper
 
-A future command helper could look like this:
+For Puppeteer robots, commands can use `captureFileFromAction(action, options?)` when a file is produced by a browser action:
 
 ```js
 const file = await captureFileFromAction(async () => {
@@ -108,19 +108,54 @@ return {
 }
 ```
 
-The helper would execute the action while observing browser activity and save the first matching file response.
+The helper executes the action while observing browser activity and saves the first matching file response. On success, it returns the same file metadata shape used by `downloadUrl(url)`.
 
-Potential detection rules:
+Optional filters can be supplied:
+
+```js
+const file = await captureFileFromAction(async () => {
+  await page.click('#generate-report')
+}, {
+  contentTypes: ['application/pdf'],
+  urlPattern: 'report|pdf',
+  timeoutMs: 30000,
+  fileName: 'relatorio.pdf'
+})
+```
+
+Default detection rules:
 
 - response header `Content-Type: application/pdf`;
 - response header `Content-Disposition: attachment`;
-- new tab opened with a PDF response;
-- navigation to a PDF handled by Chromium's internal viewer;
-- XHR/fetch response with file content;
-- blob URL created from a captured response.
+- response header with a file-like MIME type such as `application/octet-stream`, CSV, XLS/XLSX, DOC/DOCX, or ZIP;
+- URL ending with a known file extension such as `.pdf`, `.csv`, `.xlsx`, `.zip`, `.doc`, or `.docx`;
+- responses observed from the current page or popups/new tabs opened during the action.
+- popup/new-tab URLs opened during the action; the helper retries those URLs with the original page cookies and user agent and saves them only when the response matches the file rules.
+
+The MCP server also exposes a dedicated `capture_file_from_action` tool. The first supported MCP action is:
+
+```json
+{
+  "robotId": "robot-id",
+  "action": {
+    "type": "click",
+    "selector": "#generate-report"
+  },
+  "match": {
+    "contentTypes": ["application/pdf"],
+    "urlContains": "report"
+  },
+  "timeoutMs": 30000,
+  "fileName": "relatorio.pdf"
+}
+```
+
+`ChromeExtensionBackend` does not support this helper yet.
 
 ## Summary
 
 Use `downloadUrl(url)` when the file URL is already known.
 
-Use a future action-capture helper when the file is produced by clicking a button, submitting a form, opening a popup, receiving a POST response, or creating a browser `blob:` URL.
+Use `captureFileFromAction` or MCP `capture_file_from_action` when the file is produced by clicking a button, submitting a form, opening a popup, or receiving a POST/XHR/fetch response during a browser action.
+
+Blob URLs created fully inside the page may still require a future page instrumentation layer if the original network response cannot be observed by Puppeteer.

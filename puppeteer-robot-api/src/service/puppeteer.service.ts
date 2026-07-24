@@ -1,4 +1,4 @@
-import { DownloadResult, RobotCommandReq, RobotCommandResp, RobotCreateResp, RobotErrorReq, RobotInfo, RobotStatusEnum, RunStatusEnum, UploadResult } from "src/model/robot.model"
+import { CaptureFileAction, CaptureFileMatchOptions, DownloadResult, RobotCommandReq, RobotCommandResp, RobotCreateResp, RobotErrorReq, RobotInfo, RobotStatusEnum, RunStatusEnum, UploadResult } from "src/model/robot.model"
 import { PuppeteerInstance } from "./puppeteer.instance"
 import { Injectable } from '@nestjs/common'
 import { FileSystemStoredFile } from "nestjs-form-data"
@@ -152,6 +152,30 @@ export class PuppeteerService {
 
     async downloadUrl(robotId: string, url: string, fileName?: string): Promise<RobotCommandResp> {
         return this.runInstanceOperation(robotId, instance => instance.downloadUrlFromCurrentPage(url, fileName))
+    }
+
+    async captureFileFromAction(
+        robotId: string,
+        action: CaptureFileAction,
+        match?: CaptureFileMatchOptions,
+        timeoutMs?: number,
+        fileName?: string,
+    ): Promise<RobotCommandResp> {
+        if (action.type !== 'click') {
+            return {
+                status: RunStatusEnum.INTERNAL_ERROR,
+                message: `Unsupported capture action type: ${action.type}`,
+                data: null,
+            }
+        }
+
+        return this.runInstanceOperation(robotId, instance => instance.captureFileFromClick(action.selector, {
+            match,
+            timeoutMs,
+            fileName,
+            waitForNavigation: action.waitForNavigation,
+            waitUntil: action.waitUntil,
+        }))
     }
 
     async pageInfo(robotId: string): Promise<RobotCommandResp> {

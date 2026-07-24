@@ -149,6 +149,25 @@ export class DownloadResult {
 
 }
 
+export interface CaptureFileMatchOptions {
+    contentTypes?: string[]
+    urlContains?: string
+    urlPattern?: string
+}
+
+export interface CaptureFileAction {
+    type: 'click'
+    selector: string
+    waitForNavigation?: boolean
+    waitUntil?: string
+}
+
+export interface CaptureFileFromActionOptions extends CaptureFileMatchOptions {
+    match?: CaptureFileMatchOptions
+    timeoutMs?: number
+    fileName?: string
+}
+
 export enum RobotStatusEnum {
     IDLE = "IDLE",
     BUSY = "BUSY",

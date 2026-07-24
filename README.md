@@ -87,7 +87,7 @@ When `LOGS_PATH` is set, command logs are written as:
 LOGS_PATH/<robotId>/<sessionId>/<operation>-<timestamp>-<uuid>.json
 ```
 
-Logged operations include `run_command`, `run_javascript_on_page`, `navigate`, `type`, `set_value`, and `click`.
+Logged operations include `run_command`, `run_javascript_on_page`, `navigate`, `type`, `set_value`, `click`, and `capture_file_from_action`.
 
 ### Automation Backends
 
@@ -110,6 +110,8 @@ For `ChromeExtensionBackend`, `create` reserves an idle connected extension sess
 Connected extension sessions are also returned by `/puppeteer-robot/list` and appear in the Angular UI with backend `Chrome Extension`. The list can include idle extension sessions that have connected but have not yet been reserved by `create`.
 
 The Chrome extension backend executes JavaScript in the active Chrome tab context. It does not expose Puppeteer objects such as `page` or `browser`, and screenshots are not supported by this backend yet.
+
+For Puppeteer robots, file downloads can use `downloadUrl(url)` when the URL is known, or `captureFileFromAction(...)` / MCP `capture_file_from_action` when a click or browser action produces the file.
 
 ### Angular Configuration
 
